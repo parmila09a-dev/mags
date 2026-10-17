@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------
+# MAGS repo: sirf apna custom code track hota hai.
+# WordPress core, uploads (photos), database aur Local app ki
+# files repo mein nahi jaati.
+# ---------------------------------------------------------------
+
+# WordPress core aur baaki sab (Local app sambhalta hai)
+/app/*
+!/app/public/
+/app/public/*
+!/app/public/wp-content/
+/app/public/wp-content/*
+!/app/public/wp-content/themes/
+!/app/public/wp-content/plugins/
+!/app/public/wp-content/mu-plugins/
+
+# Sirf hamari theme
+/app/public/wp-content/themes/*
+!/app/public/wp-content/themes/mags-school-2026/
+
+# Sirf hamare plugins (mags-erp aage banega)
+/app/public/wp-content/plugins/*
+!/app/public/wp-content/plugins/mags-core/
+!/app/public/wp-content/plugins/mags-security/
+!/app/public/wp-content/plugins/mags-erp/
+
+# Local app ki files, purana database dump aur logs
+/conf/
+/logs/
+
+# Setup scripts aur purane backup (repo mein nahi chahiye)
+/repo-setup/
+/_backup/
+
+# Secrets aur faltu files
+wp-config.php
+.env
+*.sql
+*.log
+node_modules/
+.DS_Store
+Thumbs.db
+desktop.ini
