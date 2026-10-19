@@ -298,6 +298,7 @@
       ['.mags-home-leadership', '.mags-home-heading, .mags-home-leader'],
       ['.mags-home-campus', '.mags-home-heading, .mags-home-campus__grid figure, .mags-home-facilities'],
       ['.mags-home-support', '.mags-home-heading, .mags-home-support__grid article'],
+      ['.mags-home-events', '.mags-home-heading, .mags-home-events__list li'],
       ['.mags-home-news', '.mags-home-heading, .mags-home-news__grid article'],
       ['.mags-home-updates', '.mags-home-notices, .mags-home-gallery']
     ];

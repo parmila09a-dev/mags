@@ -1,11 +1,12 @@
 <?php
-/** Infrastructure page using only school-supplied facility information. */
+/** Infrastructure page: the page content and Featured Image come from the CMS. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 get_header();
 while ( have_posts() ) :
 	the_post();
 	$building_image = get_theme_file_uri( '/assets/images/mags-school-building.jpg' );
+	$has_content    = '' !== trim( wp_strip_all_tags( strip_shortcodes( get_the_content() ) ) );
 	$lab_image      = get_theme_file_uri( '/assets/images/gallery-computer-lab.jpg' );
 	$facility_names = array( 'Building', 'Library', 'Computer Lab', 'Mathematics Lab', 'Biotechnology Lab', 'Chemistry Lab', 'Sports Facilities', 'Music, Dance, Drama & Cultural Activities' );
 	?>
@@ -27,9 +28,17 @@ while ( have_posts() ) :
 				<div>
 					<p class="eyebrow">Lakhi Ram Park campus</p>
 					<h2 class="display-heading">Spaces for learning and participation.</h2>
-					<p>Maharaja Agrasen Global School operates from 1, Lakhi Ram Park, Opp. Sector-22, Rohini, Delhi-110086. The facility areas below follow the infrastructure list supplied by the school.</p>
+					<?php if ( $has_content ) : ?>
+						<div class="entry-content"><?php the_content(); ?></div>
+					<?php else : ?>
+						<p>Maharaja Agrasen Global School operates from 1, Lakhi Ram Park, Opp. Sector-22, Rohini, Delhi-110086. The facility areas below follow the infrastructure list supplied by the school.</p>
+					<?php endif; ?>
 				</div>
-				<img src="<?php echo esc_url( $building_image ); ?>" alt="Maharaja Agrasen Global School building at Lakhi Ram Park" decoding="async">
+				<?php if ( has_post_thumbnail() ) : ?>
+					<?php the_post_thumbnail( 'large', array( 'decoding' => 'async' ) ); ?>
+				<?php else : ?>
+					<img src="<?php echo esc_url( $building_image ); ?>" alt="Maharaja Agrasen Global School building at Lakhi Ram Park" decoding="async">
+				<?php endif; ?>
 			</section>
 
 			<section class="infrastructure-feature">

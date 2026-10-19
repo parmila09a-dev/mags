@@ -33,7 +33,7 @@ get_header();
 					<?php while ( have_posts() ) : the_post(); ?>
 						<article class="card gallery-album-card">
 							<?php $album_image = mags_school_primary_image_url( get_the_ID(), 'medium_large' ); if ( $album_image ) : ?><img src="<?php echo esc_url( $album_image ); ?>" alt="" loading="lazy" decoding="async"><?php endif; ?>
-							<p class="eyebrow"><?php echo esc_html( get_the_date() ); ?></p>
+							<p class="eyebrow"><?php echo esc_html( get_the_date( 'j F Y' ) ); ?></p>
 							<h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
 							<p><?php echo esc_html( get_the_excerpt() ); ?></p>
 						</article>

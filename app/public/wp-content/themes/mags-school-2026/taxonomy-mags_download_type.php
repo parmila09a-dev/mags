@@ -22,7 +22,7 @@ $download_types = get_terms( array( 'taxonomy' => 'mags_download_type', 'hide_em
 	<div class="section-heading"><div><p class="eyebrow">Document centre</p><h2><?php single_term_title(); ?></h2></div></div>
 	<div class="archive-grid">
 		<?php if ( have_posts() ) : while ( have_posts() ) : the_post(); ?>
-			<article class="card document-card"><p class="eyebrow"><?php echo esc_html( get_the_date() ); ?></p><h3><?php the_title(); ?></h3><?php if ( get_the_excerpt() ) : ?><p><?php echo esc_html( get_the_excerpt() ); ?></p><?php endif; ?><a class="button button--outline" href="<?php echo esc_url( mags_school_document_link() ); ?>" aria-label="<?php echo esc_attr( sprintf( 'Open PDF: %s', get_the_title() ) ); ?>">Open PDF</a></article>
+			<article class="card document-card"><p class="eyebrow"><?php echo esc_html( get_the_date( 'j F Y' ) ); ?></p><h3><?php the_title(); ?></h3><?php if ( get_the_excerpt() ) : ?><p><?php echo esc_html( get_the_excerpt() ); ?></p><?php endif; ?><a class="button button--outline" href="<?php echo esc_url( mags_school_document_link() ); ?>" aria-label="<?php echo esc_attr( sprintf( 'Open PDF: %s', get_the_title() ) ); ?>">Open PDF</a></article>
 		<?php endwhile; else : ?><div class="empty-state">No documents have been published in this category yet.</div><?php endif; ?>
 	</div>
 	<?php the_posts_pagination(); ?>

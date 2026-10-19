@@ -6,7 +6,7 @@ This guide is for authorized school staff who manage the website without editing
 
 Open `https://your-school-domain/wp-admin` and sign in with the account issued by the site administrator. Use your own account; never share an Administrator password.
 
-Choose **Pages → Add New** to create a page, or **Pages → All Pages** to edit, preview, publish, unpublish or move a page to Trash. The WordPress block editor is the rich-text editor: use it for headings, paragraphs, lists, buttons, links, images and other approved blocks. Use **Preview** before **Publish** or **Update**.
+Choose **Pages → Add New** to create a page, or **Pages → All Pages** to edit, preview, publish, unpublish or move a page to Trash. Text written in the editor of the **Infrastructure** and **Contact Us** pages appears on those pages; a Featured Image on Infrastructure replaces the building photograph. On the Patron’s, Chairman’s and Principal’s message pages, the **Leadership profile** box (name and role) and the page’s **Featured Image** (photograph) are shown on the page and on the homepage leadership card. The WordPress block editor is the rich-text editor: use it for headings, paragraphs, lists, buttons, links, images and other approved blocks. Use **Preview** before **Publish** or **Update**.
 
 Manage uploaded images and documents under **Media → Library**. Give files clear names, add alternative text to meaningful images and remove obsolete duplicates only after checking that no page, event or gallery still uses them.
 
@@ -36,12 +36,12 @@ Preview the document link on a phone before publishing. Replace a file only with
 
 ## 4. Publish News and Events
 
-Use **News → Add News Article** for news. Add the title and article in the block editor, choose a **Featured Image**, and select **Feature this item in the homepage News & Events section** only when it should be promoted. Preview, then publish.
+Use **News → Add News Article** for news. Add the title and article in the block editor, choose a **Featured Image**, and select **Feature this item in the homepage News & Events section** only when it should be promoted. Preview, then publish. The homepage shows three items: ticked items first (newest first), then the latest remaining items.
 
 Use **Events → Add Event** for upcoming or past event content:
 
 1. Add the event title and write-up.
-2. Set the official date under **Event date**.
+2. Set the official date under **Event date**. It is displayed as, for example, 29 June 2026. Events dated today or later are also listed automatically under **Upcoming events** on the homepage and the News & Events page, soonest first.
 3. Under **Event / album photographs**, choose **Add photographs** and select multiple Media Library images in one operation.
 4. Optionally select homepage promotion.
 5. Preview and publish.
@@ -58,6 +58,8 @@ The public Gallery is completely CMS-managed. Only published **Gallery Albums** 
 4. Review the numbered preview thumbnails, remove any wrong image, and drag thumbnails or use the arrow buttons to arrange them.
 5. Add a separate Featured Image only if the album card should use a different cover; otherwise the first photograph is used.
 6. Preview and publish the album.
+
+To choose the albums shown in the homepage **From our galleries** section, tick **Show this album in the homepage “From our galleries” section** in the album’s **Homepage gallery** box. Up to three ticked albums are shown, newest first; when no album is ticked the three newest albums are shown.
 
 Use one album per event, session or clear subject so visitors can understand the organization. Unpublishing or moving an album to Trash removes it from public display without requiring a code change.
 
@@ -113,3 +115,12 @@ Before publishing or updating any public content:
 The theme supplies native descriptions, canonical/share metadata and structured data. If the school later installs an approved SEO plugin, an administrator should configure it on staging and check the final page source for duplicate metadata.
 
 For backups, user accounts, plugins, SMTP, domain settings or code changes, contact the site administrator.
+
+## 10. Student & Staff Portal
+
+The portal at `/portal/` is separate from the website editing described above. Its setup and rules are in `app/public/wp-content/plugins/mags-erp/README.md`. In short:
+
+- **Office** adds classes, teachers and students and gives teachers their classes. New login details are shown once; note them before leaving the page.
+- **Teachers** mark attendance, give homework (with an optional file, due date and maximum marks), check answers with marks or a comment, and share notes files with their classes.
+- **Students and parents** sign in with the admission number, see the student's own attendance, send homework answers (a photo or document), read marks and comments, and download class notes.
+- Everyone sees only their own classes or their own child's data. Portal accounts cannot open the WordPress Dashboard.

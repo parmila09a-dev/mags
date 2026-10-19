@@ -9,6 +9,8 @@ while ( have_posts() ) {
 	$mags_email    = mags_school_option( 'email' );
 	$mags_map      = mags_school_option( 'map_url' );
 	$mags_building = get_theme_file_uri( '/assets/images/mags-school-building.jpg' );
+	$mags_has_form = has_shortcode( get_the_content(), 'mags_contact_form' );
+	$mags_has_text = '' !== trim( wp_strip_all_tags( strip_shortcodes( get_the_content() ) ) );
 	?>
 	<header class="page-header">
 		<div class="wrap">
@@ -35,7 +37,8 @@ while ( have_posts() ) {
 				</div>
 			</aside>
 			<div>
-				<?php echo do_shortcode( '[mags_contact_form]' ); ?>
+				<?php if ( $mags_has_text || $mags_has_form ) : ?><div class="entry-content contact-page-content"><?php the_content(); ?></div><?php endif; ?>
+				<?php if ( ! $mags_has_form ) { echo do_shortcode( '[mags_contact_form]' ); } ?>
 				<?php if ( $mags_map ) : ?>
 					<iframe class="school-map" title="Maharaja Agrasen Global School location" width="100%" height="320" loading="lazy" src="<?php echo esc_url( $mags_map ); ?>"></iframe>
 				<?php else : ?>

@@ -1,5 +1,7 @@
 # MAGS School 2026 — WordPress Package
 
+The documentation lives in this `docs/` folder, outside the theme, so it is never served from the live site. The code is under `app/public/wp-content/` (theme `mags-school-2026`, plugins `mags-core`, `mags-security` and `mags-erp`).
+
 A responsive, original WordPress website prepared for Maharaja Agrasen Global School. The package contains the custom **MAGS School 2026** theme, the **MAGS Core** CMS plugin and the **MAGS Security Baseline** plugin. No premium theme, page builder or premium plugin is required.
 
 Read [PRODUCTION-DEPLOYMENT.md](PRODUCTION-DEPLOYMENT.md) before moving the local site to a public domain, and complete [PRE-LAUNCH-CHECKLIST.md](PRE-LAUNCH-CHECKLIST.md) before launch.
@@ -27,13 +29,12 @@ The local implementation includes the mandatory CMS structure, responsive theme,
 
 1. Install a current supported WordPress release on the hosting server and complete its database setup.
 2. Copy the `mags-school-2026` theme directory to `wp-content/themes/`.
-3. Copy the bundled `mags-core` and `mags-security` directories to `wp-content/plugins/`.
+3. Copy the `mags-core` and `mags-security` plugin directories to `wp-content/plugins/`. They live in the repository's `wp-content/plugins/` folder, not inside the theme.
 4. Activate **MAGS Core** and **MAGS Security Baseline**, then activate **MAGS School 2026** under **Appearance → Themes**.
-5. Open **Tools → MAGS Site Setup** and choose **Create / verify site structure**. The tool creates or verifies the editable page structure and primary menu without deleting staff-authored content.
+5. Open **Tools → MAGS Site Setup** and choose **Create / verify site structure**. The tool creates or verifies the editable page structure and primary menu without deleting staff-authored content. A menu that already has items is left exactly as staff arranged it.
 6. Open **Settings → Permalinks**, choose **Post name**, and save once to register the Notices, Downloads, Events and Gallery URLs.
-7. If building a clean site instead of migrating the completed local database, optionally import `site-content/mags-starter-content.xml` through the WordPress Importer. Review every imported page before publication.
-8. Enter approved contact and social information under **Settings → MAGS Settings**. For Google Maps, paste only the URL inside the embed iframe's `src="…"` attribute, not the full iframe and not the normal Share link.
-9. Configure authenticated SMTP and complete the production checklist. When deploying the completed local site, migrate its database and uploads to preserve the eight prepared Gallery Albums; on a clean installation, import and approve the media/albums separately.
+7. Enter approved contact and social information under **Settings → MAGS Settings**. For Google Maps, paste only the URL inside the embed iframe's `src="…"` attribute, not the full iframe and not the normal Share link.
+8. Configure authenticated SMTP and complete the production checklist. When deploying the completed local site, migrate its database and uploads to preserve the eight prepared Gallery Albums; on a clean installation, import and approve the media/albums separately.
 
 When moving the completed local site, migrate the database and `wp-content/uploads` together. Gallery albums store WordPress attachment IDs, so copying only theme files does not transfer their photographs or CMS content.
 

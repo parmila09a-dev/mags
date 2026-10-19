@@ -30,7 +30,7 @@ $archive_title = is_post_type_archive() ? post_type_archive_title( '', false ) :
 								<?php the_post_thumbnail( 'medium_large', array( 'class' => 'card-thumbnail', 'loading' => 'lazy', 'decoding' => 'async' ) ); ?>
 							</div>
 						<?php endif; ?>
-						<p class="eyebrow"><?php echo esc_html( get_the_date() ); ?></p>
+						<p class="eyebrow"><?php echo esc_html( get_the_date( 'j F Y' ) ); ?></p>
 						<h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3>
 						<p><?php echo esc_html( get_the_excerpt() ); ?></p>
 						<?php if ( in_array( get_post_type(), array( 'mags_notice', 'mags_download' ), true ) ) : ?>

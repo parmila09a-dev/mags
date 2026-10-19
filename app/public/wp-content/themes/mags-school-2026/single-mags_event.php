@@ -2,7 +2,7 @@
 /** Single event with CMS-managed event photographs. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 get_header();
-while ( have_posts() ) : the_post(); $event_date = get_post_meta( get_the_ID(), '_mags_event_date', true ); $photo_ids = mags_school_gallery_image_ids(); ?>
+while ( have_posts() ) : the_post(); $event_date = mags_school_event_date(); $photo_ids = mags_school_gallery_image_ids(); ?>
 	<header class="page-header">
 		<div class="wrap">
 			<nav class="breadcrumb" aria-label="<?php esc_attr_e( 'Breadcrumb', 'mags-school' ); ?>">

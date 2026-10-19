@@ -19,10 +19,11 @@ $items      = new WP_Query( array( 'post_type' => array( 'post', 'mags_event' ),
 	</div>
 </header>
 <section class="content-area"><div class="wrap">
+	<?php if ( 1 === $paged ) { get_template_part( 'template-parts/upcoming-events' ); } ?>
 	<div class="section-heading"><div><p class="eyebrow">School updates</p><h2>News, achievements and events.</h2></div><p>Published news articles and school events are managed from the WordPress Dashboard.</p></div>
 	<div class="archive-grid">
-		<?php if ( $items->have_posts() ) : while ( $items->have_posts() ) : $items->the_post(); $event_date = get_post_meta( get_the_ID(), '_mags_event_date', true ); ?>
-			<article class="card cms-story-card"><?php $story_image = mags_school_primary_image_url( get_the_ID(), 'medium_large' ); if ( $story_image ) : ?><img src="<?php echo esc_url( $story_image ); ?>" alt="" loading="lazy" decoding="async"><?php endif; ?><p class="eyebrow"><?php echo esc_html( get_post_type() === 'mags_event' && $event_date ? 'Event · ' . $event_date : get_the_date() ); ?></p><h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3><p><?php echo esc_html( get_the_excerpt() ); ?></p><a href="<?php the_permalink(); ?>">Read more →</a></article>
+		<?php if ( $items->have_posts() ) : while ( $items->have_posts() ) : $items->the_post(); $event_date = mags_school_event_date(); ?>
+			<article class="card cms-story-card"><?php $story_image = mags_school_primary_image_url( get_the_ID(), 'medium_large' ); if ( $story_image ) : ?><img src="<?php echo esc_url( $story_image ); ?>" alt="" loading="lazy" decoding="async"><?php endif; ?><p class="eyebrow"><?php echo esc_html( get_post_type() === 'mags_event' && $event_date ? 'Event · ' . $event_date : get_the_date( 'j F Y' ) ); ?></p><h3><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h3><p><?php echo esc_html( get_the_excerpt() ); ?></p><a href="<?php the_permalink(); ?>">Read more →</a></article>
 		<?php endwhile; else : ?><div class="empty-state">No news or events have been published yet.</div><?php endif; wp_reset_postdata(); ?>
 	</div>
 	<?php if ( $items->max_num_pages > 1 ) : ?><nav class="pagination" aria-label="News pagination"><?php echo wp_kses_post( paginate_links( array( 'total' => $items->max_num_pages, 'current' => $paged ) ) ); ?></nav><?php endif; ?>

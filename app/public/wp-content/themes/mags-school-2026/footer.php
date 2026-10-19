@@ -64,6 +64,7 @@ $mags_contact_url    = mags_school_page_url( 'contact-us' );
 				<li><a href="<?php echo esc_url( $mags_download_url ); ?>">Downloads</a></li>
 				<li><a href="<?php echo esc_url( $mags_gallery_url ); ?>">Gallery</a></li>
 				<li><a href="<?php echo esc_url( $mags_notice_url ); ?>">Notice Board</a></li>
+				<?php if ( function_exists( 'mags_erp_url' ) ) : ?><li><a href="<?php echo esc_url( mags_erp_url() ); ?>">Student &amp; Staff Portal</a></li><?php endif; ?>
 			</ul>
 		</div>
 

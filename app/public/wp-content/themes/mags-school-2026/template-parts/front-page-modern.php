@@ -185,41 +185,26 @@ $mags_has_message    = static function ( $page ) use ( $mags_clean_text ) {
 	$text = $mags_clean_text( $page->post_content );
 	return count( preg_split( '/\s+/', $text ) ) > 12;
 };
-$mags_leaders        = array(
+$mags_leaders        = array();
+foreach (
 	array(
-		'name'     => $mags_patron_page ? ( get_post_meta( $mags_patron_page->ID, '_mags_leader_name', true ) ?: 'Dr. Nand Kishore Garg' ) : 'Dr. Nand Kishore Garg',
-		'role'     => 'Patron',
-		'image_id' => $mags_patron_page ? (int) get_post_thumbnail_id( $mags_patron_page ) : 0,
-		'image'    => $mags_image_base . 'patron-dr-nand-kishore-garg.jpg',
-		'url'      => $mags_patron_message_url,
-		'excerpt'  => $mags_page_excerpt( 'patrons-message', 'Our continuing dream is to ensure value-based, quality education for every student.', 27 ),
-		'has_message' => $mags_has_message( $mags_patron_page ),
-		'width'    => 267,
-		'height'   => 244,
-	),
-	array(
-		'name'     => $mags_chairman_page ? ( get_post_meta( $mags_chairman_page->ID, '_mags_leader_name', true ) ?: 'Er. T. R. Garg' ) : 'Er. T. R. Garg',
-		'role'     => 'Chairman',
-		'image_id' => $mags_chairman_page ? (int) get_post_thumbnail_id( $mags_chairman_page ) : 0,
-		'image'    => $mags_image_base . 'chairman-tr-garg.jpg',
-		'url'      => $mags_chairman_message_url,
-		'excerpt'  => $mags_has_message( $mags_chairman_page ) ? $mags_page_excerpt( 'chairmans-message', '', 27 ) : '',
-		'has_message' => $mags_has_message( $mags_chairman_page ),
-		'width'    => 1000,
-		'height'   => 1024,
-	),
-	array(
-		'name'     => $mags_principal_page ? ( get_post_meta( $mags_principal_page->ID, '_mags_leader_name', true ) ?: 'Meetu Aggarwal' ) : 'Meetu Aggarwal',
-		'role'     => 'Principal',
-		'image_id' => $mags_principal_page ? (int) get_post_thumbnail_id( $mags_principal_page ) : 0,
-		'image'    => $mags_image_base . 'principal-meetu-aggarwal.png',
-		'url'      => $mags_principal_message_url,
-		'excerpt'  => $mags_page_excerpt( 'principals-message', 'Discipline is the foundation, innovation is the spark, sports build the spirit, and academics form the core.', 27 ),
-		'has_message' => $mags_has_message( $mags_principal_page ),
-		'width'    => 195,
-		'height'   => 258,
-	),
-);
+		array( 'patrons-message', $mags_patron_page, $mags_patron_message_url, 'Our continuing dream is to ensure value-based, quality education for every student.' ),
+		array( 'chairmans-message', $mags_chairman_page, $mags_chairman_message_url, '' ),
+		array( 'principals-message', $mags_principal_page, $mags_principal_message_url, 'Discipline is the foundation, innovation is the spark, sports build the spirit, and academics form the core.' ),
+	) as $mags_leader_source
+) {
+	list( $mags_leader_slug, $mags_leader_page, $mags_leader_url, $mags_leader_fallback ) = $mags_leader_source;
+	$mags_leader_profile = mags_school_leader_profile( $mags_leader_slug, $mags_leader_page );
+	$mags_leader_message = $mags_has_message( $mags_leader_page );
+	$mags_leaders[]      = array_merge(
+		$mags_leader_profile,
+		array(
+			'url'         => $mags_leader_url,
+			'excerpt'     => $mags_leader_message || $mags_leader_fallback ? $mags_page_excerpt( $mags_leader_slug, $mags_leader_fallback, 27 ) : '',
+			'has_message' => $mags_leader_message,
+		)
+	);
+}
 
 $mags_computer_lab_album = get_page_by_path( 'computer-lab', OBJECT, 'mags_gallery' );
 $mags_computer_lab_url   = $mags_computer_lab_album ? get_permalink( $mags_computer_lab_album ) : $mags_gallery_url;
@@ -266,36 +251,13 @@ $mags_notices = new WP_Query(
 );
 $mags_has_notices = $mags_notices->have_posts();
 
-$mags_updates = new WP_Query(
-	array(
-		'post_type'           => array( 'post', 'mags_event' ),
-		'post_status'         => 'publish',
-		'posts_per_page'      => 3,
-		'orderby'             => 'date',
-		'order'               => 'DESC',
-		'ignore_sticky_posts' => false,
-		'no_found_rows'       => true,
-	)
-);
+$mags_updates         = mags_school_homepage_updates( 3 );
+$mags_upcoming_events = mags_school_upcoming_events( 4 );
 
-$mags_gallery_cards = array();
-$mags_gallery_posts = get_posts(
-	array(
-		'post_type'      => 'mags_gallery',
-		'post_status'    => 'publish',
-		'posts_per_page' => 5,
-		'orderby'        => 'date',
-		'order'          => 'DESC',
-		'no_found_rows'  => true,
-	)
-);
-foreach ( $mags_gallery_posts as $mags_gallery_post ) {
-	if ( in_array( $mags_gallery_post->post_name, array( 'new-academic-session-2026-27-vedic-havan', 'homepage-hero' ), true ) ) {
-		continue;
-	}
-	if ( count( $mags_gallery_cards ) >= 3 ) {
-		break;
-	}
+$mags_gallery_cards  = array();
+$mags_gallery_albums = mags_school_homepage_albums( 3 );
+$mags_gallery_chosen = $mags_gallery_albums && '1' === get_post_meta( $mags_gallery_albums[0]->ID, '_mags_gallery_homepage', true );
+foreach ( $mags_gallery_albums as $mags_gallery_post ) {
 	$mags_gallery_image_id = (int) get_post_thumbnail_id( $mags_gallery_post );
 	if ( ! $mags_gallery_image_id ) {
 		$mags_gallery_image_ids = mags_school_gallery_image_ids( $mags_gallery_post->ID );
@@ -310,7 +272,7 @@ foreach ( $mags_gallery_posts as $mags_gallery_post ) {
 	}
 }
 
-if ( count( $mags_gallery_cards ) < 3 ) {
+if ( ! $mags_gallery_chosen && count( $mags_gallery_cards ) < 3 ) {
 	$mags_official_gallery = mags_school_official_gallery_items();
 	foreach ( array( 1, 4, 3 ) as $mags_gallery_index ) {
 		if ( count( $mags_gallery_cards ) >= 3 || empty( $mags_official_gallery[ $mags_gallery_index ] ) ) {
@@ -508,15 +470,25 @@ $mags_address = mags_school_option( 'address', '1, Lakhi Ram Park, Opp. Sector-2
 	</section>
 	<div class="mags-home-passage" aria-hidden="true" data-mags-passage><span class="mags-home-passage__lamp"></span></div>
 
-	<?php if ( $mags_updates->have_posts() ) : ?>
+	<?php if ( $mags_upcoming_events ) : ?>
+		<section class="mags-home-section mags-home-events" aria-labelledby="mags-events-title">
+			<div class="wrap"><header class="mags-home-heading"><div><p class="mags-home-eyebrow">Mark your calendar</p><h2 id="mags-events-title">Upcoming events.</h2></div><a class="mags-home-text-link" href="<?php echo esc_url( $mags_news_url ); ?>">View all events <span aria-hidden="true">→</span></a></header><ol class="mags-home-events__list">
+			<?php foreach ( $mags_upcoming_events as $mags_event ) : $mags_event_iso = get_post_meta( $mags_event->ID, '_mags_event_date', true ); ?>
+				<li><a href="<?php echo esc_url( get_permalink( $mags_event ) ); ?>"><time datetime="<?php echo esc_attr( $mags_event_iso ); ?>"><b><?php echo esc_html( mags_school_event_date( $mags_event->ID, 'j' ) ); ?></b><span><?php echo esc_html( mags_school_event_date( $mags_event->ID, 'M Y' ) ); ?></span></time><div><h3><?php echo esc_html( get_the_title( $mags_event ) ); ?></h3><p><?php echo esc_html( mags_school_event_date( $mags_event->ID, 'l, j F Y' ) ); ?></p></div><span aria-hidden="true">→</span></a></li>
+			<?php endforeach; ?>
+			</ol></div>
+		</section>
+	<?php endif; ?>
+
+	<?php if ( $mags_updates ) : ?>
 		<section class="mags-home-section mags-home-news" aria-labelledby="mags-news-title">
 			<div class="wrap"><header class="mags-home-heading"><div><p class="mags-home-eyebrow">News & events</p><h2 id="mags-news-title">Latest from MAGS.</h2></div><a class="mags-home-text-link" href="<?php echo esc_url( $mags_news_url ); ?>">View all updates <span aria-hidden="true">→</span></a></header><div class="mags-home-news__grid">
-			<?php while ( $mags_updates->have_posts() ) : $mags_updates->the_post(); ?>
-				<article><a href="<?php the_permalink(); ?>"><?php $mags_update_image = (int) get_post_thumbnail_id(); if ( $mags_update_image ) { echo wp_get_attachment_image( $mags_update_image, 'medium_large', false, array( 'alt' => '', 'loading' => 'lazy', 'decoding' => 'async' ) ); } ?><div><time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>"><?php echo esc_html( get_the_date() ); ?></time><h3><?php the_title(); ?></h3></div></a></article>
-			<?php endwhile; wp_reset_postdata(); ?>
+			<?php foreach ( $mags_updates as $mags_update ) : $mags_update_event_iso = 'mags_event' === $mags_update->post_type ? get_post_meta( $mags_update->ID, '_mags_event_date', true ) : ''; ?>
+				<article><a href="<?php echo esc_url( get_permalink( $mags_update ) ); ?>"><?php $mags_update_image = (int) get_post_thumbnail_id( $mags_update ); if ( $mags_update_image ) { echo wp_get_attachment_image( $mags_update_image, 'medium_large', false, array( 'alt' => '', 'loading' => 'lazy', 'decoding' => 'async' ) ); } ?><div><time datetime="<?php echo esc_attr( $mags_update_event_iso ?: get_the_date( 'c', $mags_update ) ); ?>"><?php echo esc_html( mags_school_update_date( $mags_update->ID ) ); ?></time><h3><?php echo esc_html( get_the_title( $mags_update ) ); ?></h3></div></a></article>
+			<?php endforeach; ?>
 			</div></div>
 		</section>
-	<?php else : wp_reset_postdata(); endif; ?>
+	<?php endif; ?>
 
 	<div class="mags-home-section mags-home-updates">
 		<div class="wrap mags-home-updates__grid<?php echo $mags_has_notices ? '' : ' mags-home-updates__grid--gallery-only'; ?>">
@@ -524,14 +496,14 @@ $mags_address = mags_school_option( 'address', '1, Lakhi Ram Park, Opp. Sector-2
 			<section class="mags-home-notices" aria-labelledby="mags-updates-title">
 				<header><div><p class="mags-home-eyebrow">Stay informed</p><h2 id="mags-updates-title">Notice Board</h2></div><a href="<?php echo esc_url( $mags_notice_url ); ?>">View all <span aria-hidden="true">→</span></a></header>
 				<ul>
-					<?php while ( $mags_notices->have_posts() ) : $mags_notices->the_post(); ?><li><time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>"><?php echo esc_html( get_the_date( 'd M Y' ) ); ?></time><a href="<?php echo esc_url( mags_school_document_link() ); ?>" aria-label="Open notice: <?php echo esc_attr( get_the_title() ); ?>"><?php the_title(); ?></a></li><?php endwhile; wp_reset_postdata(); ?>
+					<?php while ( $mags_notices->have_posts() ) : $mags_notices->the_post(); ?><li><time datetime="<?php echo esc_attr( get_the_date( 'c' ) ); ?>"><?php echo esc_html( get_the_date( 'j M Y' ) ); ?></time><a href="<?php echo esc_url( mags_school_document_link() ); ?>" aria-label="Open notice: <?php echo esc_attr( get_the_title() ); ?>"><?php the_title(); ?></a></li><?php endwhile; wp_reset_postdata(); ?>
 				</ul>
 			</section>
 			<?php endif; ?>
 
 			<section class="mags-home-gallery" aria-labelledby="mags-gallery-title">
 				<header><div><p class="mags-home-eyebrow">School life</p><h2 id="mags-gallery-title">From our galleries</h2></div><a href="<?php echo esc_url( $mags_gallery_url ); ?>">View gallery <span aria-hidden="true">→</span></a></header>
-				<div class="mags-home-gallery__grid">
+				<div class="mags-home-gallery__grid mags-home-gallery__grid--<?php echo esc_attr( (string) min( 3, count( $mags_gallery_cards ) ) ); ?>">
 					<?php foreach ( $mags_gallery_cards as $mags_gallery_card ) : ?>
 						<a href="<?php echo esc_url( $mags_gallery_card['url'] ); ?>">
 							<?php if ( $mags_gallery_card['id'] ) : ?><?php echo wp_get_attachment_image( $mags_gallery_card['id'], 'medium_large', false, array( 'alt' => mags_school_attachment_alt( $mags_gallery_card['id'], $mags_gallery_card['title'] ), 'loading' => 'lazy', 'decoding' => 'async' ) ); ?><?php else : ?><img src="<?php echo esc_url( $mags_gallery_card['image'] ); ?>" alt="<?php echo esc_attr( $mags_gallery_card['title'] ); ?>" loading="lazy" decoding="async"><?php endif; ?>

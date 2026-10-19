@@ -5,30 +5,7 @@ get_header();
 while ( have_posts() ) {
 	the_post();
 	$slug = get_post_field( 'post_name', get_the_ID() );
-	$profiles = array(
-		'patrons-message' => array(
-			'name'  => 'Dr. Nand Kishore Garg',
-			'role'  => 'Patron',
-			'image' => get_theme_file_uri( '/assets/images/patron-dr-nand-kishore-garg.jpg' ),
-			'width' => 267,
-			'height' => 244,
-		),
-		'chairmans-message' => array(
-			'name'  => 'Er. T. R. Garg',
-			'role'  => 'Chairman',
-			'image' => get_theme_file_uri( '/assets/images/chairman-tr-garg.jpg' ),
-			'width' => 1000,
-			'height' => 1024,
-		),
-		'principals-message' => array(
-			'name'  => 'Meetu Aggarwal',
-			'role'  => 'Principal',
-			'image' => get_theme_file_uri( '/assets/images/principal-meetu-aggarwal.png' ),
-			'width' => 195,
-			'height' => 258,
-		),
-	);
-	$profile = isset( $profiles[ $slug ] ) ? $profiles[ $slug ] : array( 'name' => get_the_title(), 'role' => 'School Leadership', 'image' => '', 'width' => 0, 'height' => 0 );
+	$profile = mags_school_leader_profile( $slug, get_post() );
 	$message_text = trim( wp_strip_all_tags( strip_shortcodes( get_the_content() ) ) );
 	$message_length = function_exists( 'mb_strlen' ) ? mb_strlen( $message_text ) : strlen( $message_text );
 	$has_message = $message_length >= 80;
@@ -47,7 +24,9 @@ while ( have_posts() ) {
 	<section class="content-area leadership-page">
 		<div class="wrap leadership-page-grid">
 			<aside class="leadership-profile">
-				<?php if ( $profile['image'] ) : ?>
+				<?php if ( $profile['image_id'] ) : ?>
+					<?php echo wp_get_attachment_image( $profile['image_id'], 'large', false, array( 'alt' => $profile['name'] . ', ' . $profile['role'], 'decoding' => 'async' ) ); ?>
+				<?php elseif ( $profile['image'] ) : ?>
 					<img src="<?php echo esc_url( $profile['image'] ); ?>" alt="<?php echo esc_attr( $profile['name'] . ', ' . $profile['role'] ); ?>" width="<?php echo esc_attr( $profile['width'] ); ?>" height="<?php echo esc_attr( $profile['height'] ); ?>">
 				<?php else : ?>
 					<div class="leadership-page-symbol" aria-hidden="true"><span>MA</span></div>

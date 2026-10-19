@@ -2,7 +2,7 @@
 /**
  * Plugin Name: MAGS Core
  * Description: CMS content modules, school settings, enquiry handling and initial setup for Maharaja Agrasen Global School.
- * Version: 1.8.0
+ * Version: 1.9.0
  * Requires at least: 6.4
  * Requires PHP: 8.1
  * Author: MAGS Website Competition Team
@@ -11,7 +11,7 @@
  */
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
-define( 'MAGS_CORE_VERSION', '1.8.0' );
+define( 'MAGS_CORE_VERSION', '1.9.0' );
 define( 'MAGS_CORE_PATH', plugin_dir_path( __FILE__ ) );
 define( 'MAGS_CORE_URL', plugin_dir_url( __FILE__ ) );
 
@@ -139,6 +139,7 @@ function mags_core_document_box() {
 	add_meta_box( 'mags_core_event_date', 'Event date', 'mags_core_event_date_html', 'mags_event', 'side' );
 	foreach ( array( 'post', 'mags_event' ) as $type ) { add_meta_box( 'mags_core_featured_home', 'Homepage promotion', 'mags_core_featured_home_html', $type, 'side' ); }
 	foreach ( array( 'mags_event', 'mags_gallery' ) as $type ) { add_meta_box( 'mags_core_photos', 'Event / album photographs', 'mags_core_photos_html', $type, 'normal', 'high' ); }
+	add_meta_box( 'mags_core_gallery_home', 'Homepage gallery', 'mags_core_gallery_home_html', 'mags_gallery', 'side' );
 	add_meta_box( 'mags_core_enquiry_details', 'Contact details', 'mags_core_enquiry_details_html', 'mags_enquiry', 'side', 'high' );
 }
 add_action( 'add_meta_boxes', 'mags_core_document_box' );
@@ -167,7 +168,18 @@ function mags_core_leadership_profile_html( $post ) {
 function mags_core_document_box_html( $post ) { wp_nonce_field( 'mags_core_meta', 'mags_core_meta_nonce' ); $url = get_post_meta( $post->ID, '_mags_document_url', true ); ?><p><label class="screen-reader-text" for="mags_document_url">Document URL</label><input class="widefat" id="mags_document_url" name="mags_document_url" type="url" value="<?php echo esc_url( $url ); ?>" placeholder="https://..."></p><p><button type="button" class="button mags-upload-document">Choose from Media Library</button></p><p class="description">Upload a tagged, accessible PDF whenever possible.</p><?php }
 function mags_core_notice_archive_html( $post ) { wp_nonce_field( 'mags_core_meta', 'mags_core_meta_nonce' ); ?><p><label><input name="mags_notice_archived" type="checkbox" value="1" <?php checked( get_post_meta( $post->ID, '_mags_notice_archived', true ), '1' ); ?>> Move this notice to the public archive</label></p><p class="description">Archived notices remain available under “Archived notices” but are removed from the current Notice Board.</p><?php }
 function mags_core_event_date_html( $post ) { wp_nonce_field( 'mags_core_meta', 'mags_core_meta_nonce' ); ?><p><label for="mags_event_date">Event date</label><input class="widefat" id="mags_event_date" name="mags_event_date" type="date" value="<?php echo esc_attr( get_post_meta( $post->ID, '_mags_event_date', true ) ); ?>"></p><?php }
+/** Turn the stored YYYY-MM-DD event date into a readable one, e.g. 29 June 2026. */
+function mags_core_format_event_date( $date, $format = 'j F Y' ) {
+	$date = is_string( $date ) ? trim( $date ) : '';
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) { return $date; }
+	return mysql2date( $format, $date . ' 00:00:00' );
+}
 function mags_core_featured_home_html( $post ) { wp_nonce_field( 'mags_core_meta', 'mags_core_meta_nonce' ); ?><p><label><input name="mags_featured_homepage" type="checkbox" value="1" <?php checked( get_post_meta( $post->ID, '_mags_featured_homepage', true ), '1' ); ?>> Feature this item in the homepage News &amp; Events section</label></p><?php }
+function mags_core_gallery_home_html( $post ) {
+	if ( 'homepage-hero' === $post->post_name ) { echo '<p class="description">This album supplies the homepage hero photographs and is not listed in the gallery section.</p>'; return; }
+	wp_nonce_field( 'mags_core_meta', 'mags_core_meta_nonce' );
+	?><p><label><input name="mags_gallery_homepage" type="checkbox" value="1" <?php checked( get_post_meta( $post->ID, '_mags_gallery_homepage', true ), '1' ); ?>> Show this album in the homepage “From our galleries” section</label></p><p class="description">The homepage shows up to 3 ticked albums, newest first. When no album is ticked it shows the 3 newest albums.</p><?php
+}
 function mags_core_gallery_image_ids( $post_id ) {
 	$ids = get_post_meta( $post_id, '_mags_gallery_image_ids', true );
 	if ( is_string( $ids ) ) { $ids = explode( ',', $ids ); }
@@ -342,6 +354,7 @@ function mags_core_save_meta( $post_id ) {
 	if ( isset( $_POST['mags_event_date'] ) ) { $date = sanitize_text_field( wp_unslash( $_POST['mags_event_date'] ) ); if ( $date === '' || preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) { update_post_meta( $post_id, '_mags_event_date', $date ); } }
 	if ( $post_type === 'mags_notice' ) { if ( ! empty( $_POST['mags_notice_archived'] ) ) { update_post_meta( $post_id, '_mags_notice_archived', '1' ); } else { delete_post_meta( $post_id, '_mags_notice_archived' ); } }
 	if ( in_array( $post_type, array( 'post', 'mags_event' ), true ) ) { if ( ! empty( $_POST['mags_featured_homepage'] ) ) { update_post_meta( $post_id, '_mags_featured_homepage', '1' ); } else { delete_post_meta( $post_id, '_mags_featured_homepage' ); } }
+	if ( $post_type === 'mags_gallery' ) { if ( ! empty( $_POST['mags_gallery_homepage'] ) && 'homepage-hero' !== get_post_field( 'post_name', $post_id ) ) { update_post_meta( $post_id, '_mags_gallery_homepage', '1' ); } else { delete_post_meta( $post_id, '_mags_gallery_homepage' ); } }
 	if ( in_array( $post_type, array( 'mags_event', 'mags_gallery' ), true ) && isset( $_POST['mags_gallery_image_ids'] ) && is_scalar( $_POST['mags_gallery_image_ids'] ) ) {
 		$ids = array_values( array_unique( array_filter( array_map( 'absint', explode( ',', sanitize_text_field( wp_unslash( (string) $_POST['mags_gallery_image_ids'] ) ) ) ) ) ) );
 		$ids = array_values( array_filter( $ids, 'wp_attachment_is_image' ) );
@@ -416,7 +429,8 @@ function mags_core_order_notices( $query ) {
 	}
 	$post_type = $query->get( 'post_type' );
 	$is_notice = $query->is_post_type_archive( 'mags_notice' ) || $post_type === 'mags_notice' || ( is_array( $post_type ) && in_array( 'mags_notice', $post_type, true ) );
-	if ( ! $is_notice ) { return; }
+	// A single notice opens whether it is current or archived; only lists are split.
+	if ( ! $is_notice || $query->is_singular() ) { return; }
 	$show_archived = isset( $_GET['notice_archive'] ) && sanitize_key( wp_unslash( $_GET['notice_archive'] ) ) === 'archived';
 	$query->set( 'meta_query', $show_archived ? array( array( 'key' => '_mags_notice_archived', 'value' => '1' ) ) : array( array( 'key' => '_mags_notice_archived', 'compare' => 'NOT EXISTS' ) ) );
 	$query->set( 'orderby', 'date' );
@@ -437,7 +451,7 @@ function mags_core_admin_columns( $columns ) {
 	if ( $post_type === 'mags_notice' ) { $columns['mags_status'] = 'Status'; $columns['mags_document'] = 'PDF'; }
 	if ( $post_type === 'mags_download' ) { $columns['mags_download_type'] = 'Document type'; $columns['mags_document'] = 'PDF'; }
 	if ( $post_type === 'mags_event' ) { $columns['mags_event_date'] = 'Event date'; $columns['mags_photos'] = 'Photos'; $columns['mags_featured'] = 'Homepage'; }
-	if ( $post_type === 'mags_gallery' ) { $columns['mags_photos'] = 'Photos'; }
+	if ( $post_type === 'mags_gallery' ) { $columns['mags_photos'] = 'Photos'; $columns['mags_gallery_home'] = 'Homepage'; }
 	if ( $post_type === 'mags_enquiry' ) { return array( 'cb' => $columns['cb'], 'title' => 'Enquiry', 'mags_name' => 'Name', 'mags_email' => 'Email', 'mags_phone' => 'Phone', 'date' => 'Received' ); }
 	return $columns;
 }
@@ -446,8 +460,9 @@ function mags_core_admin_column_content( $column, $post_id ) {
 	if ( $column === 'mags_status' ) { echo get_post_meta( $post_id, '_mags_notice_archived', true ) === '1' ? '<strong>Archived</strong>' : 'Current'; }
 	if ( $column === 'mags_document' ) { $url = get_post_meta( $post_id, '_mags_document_url', true ); echo $url ? '<a href="' . esc_url( $url ) . '" target="_blank" rel="noopener">Open PDF</a>' : '—'; }
 	if ( $column === 'mags_download_type' ) { $terms = get_the_terms( $post_id, 'mags_download_type' ); echo $terms && ! is_wp_error( $terms ) ? esc_html( implode( ', ', wp_list_pluck( $terms, 'name' ) ) ) : 'Uncategorized'; }
-	if ( $column === 'mags_event_date' ) { echo esc_html( get_post_meta( $post_id, '_mags_event_date', true ) ?: '—' ); }
+	if ( $column === 'mags_event_date' ) { echo esc_html( mags_core_format_event_date( get_post_meta( $post_id, '_mags_event_date', true ) ) ?: '—' ); }
 	if ( $column === 'mags_photos' ) { echo esc_html( (string) count( mags_core_gallery_image_ids( $post_id ) ) ); }
+	if ( $column === 'mags_gallery_home' ) { echo get_post_meta( $post_id, '_mags_gallery_homepage', true ) === '1' ? 'Shown' : '—'; }
 	if ( $column === 'mags_featured' ) { echo get_post_meta( $post_id, '_mags_featured_homepage', true ) === '1' ? 'Featured' : '—'; }
 	if ( $column === 'mags_name' ) { echo esc_html( get_post_meta( $post_id, '_mags_enquiry_name', true ) ); }
 	if ( $column === 'mags_email' ) { $email = get_post_meta( $post_id, '_mags_enquiry_email', true ); echo '<a href="mailto:' . esc_attr( $email ) . '">' . esc_html( $email ) . '</a>'; }
@@ -475,7 +490,7 @@ function mags_core_send_enquiry() {
 add_action( 'admin_post_nopriv_mags_send_enquiry', 'mags_core_send_enquiry' );
 add_action( 'admin_post_mags_send_enquiry', 'mags_core_send_enquiry' );
 
-function mags_core_setup_page() { if ( ! current_user_can( 'manage_options' ) ) { return; } ?><div class="wrap"><h1>MAGS Site Setup</h1><p>This creates the school-approved editable page structure, homepage assignment and primary navigation. Existing staff-authored content is preserved.</p><form method="post"><?php wp_nonce_field( 'mags_core_run_setup', 'mags_core_setup_nonce' ); ?><input type="hidden" name="mags_core_run_setup" value="1"><?php submit_button( 'Create / verify site structure', 'primary', 'submit', false ); ?></form><?php if ( get_option( 'mags_core_setup_done' ) ) { echo '<p><strong>Setup completed.</strong> Add the remaining approved contact details, admissions information and photographs before launch.</p>'; } ?></div><?php }
+function mags_core_setup_page() { if ( ! current_user_can( 'manage_options' ) ) { return; } ?><div class="wrap"><h1>MAGS Site Setup</h1><p>This adds whatever is missing from the school-approved structure: pages, page templates, the homepage assignment and the primary navigation. Nothing that already exists is renamed, rewritten, moved or deleted, and the tagline and contact settings are not changed. A menu that already has items is never changed; to get the standard menu back, remove every item from the Primary menu under Appearance → Menus and run this again.</p><form method="post"><?php wp_nonce_field( 'mags_core_run_setup', 'mags_core_setup_nonce' ); ?><input type="hidden" name="mags_core_run_setup" value="1"><?php submit_button( 'Create / verify site structure', 'primary', 'submit', false ); ?></form><?php if ( get_option( 'mags_core_setup_done' ) ) { echo '<p><strong>Setup completed.</strong> Add the remaining approved contact details, admissions information and photographs before launch.</p>'; } ?></div><?php }
 
 function mags_core_official_pages() {
 	return array(
@@ -504,71 +519,6 @@ function mags_core_official_pages() {
 	);
 }
 
-function mags_core_is_starter_content( $content ) {
-	$starter_phrases = array( 'Replace this starter copy', 'Add approved', 'Add the approved', 'Add the official school motto and its meaning', 'Every learner develops knowledge, character and confidence', 'Offer inclusive, engaging learning rooted in empathy, integrity and service', 'Describe curriculum', 'Describe classrooms', 'Describe science', 'Describe reading', 'Describe indoor', 'Describe clubs', 'Replace with approved', 'Publish the approved' );
-	if ( trim( wp_strip_all_tags( $content ) ) === '' ) { return true; }
-	foreach ( $starter_phrases as $phrase ) { if ( strpos( $content, $phrase ) !== false ) { return true; } }
-	return false;
-}
-
-/**
- * Content shipped before the school supplied its final History, Mission and Motto copy.
- * These exact values are retained only so the one-time migration can distinguish
- * untouched plugin content from content written by a school administrator.
- */
-function mags_core_previous_approved_page_content() {
-	return array(
-		'history' => array(
-			'<p>Maharaja Agrasen Global School is sponsored by the Maharaja Agrasen Technical Education Society, Delhi.</p><p>The Society was founded in 1998 with the vision to establish institutions of excellence, provide quality education to young people and infuse them with noble values of Indian culture and a spirit of service to the community, the nation and humanity. Its founding members include distinguished educationists, captains of industry, senior civil servants and leading social activists. The Founder Chairman is Dr. Nand Kishore Garg, eminent for his long years of public service.</p><h2>Institutions established by the Society</h2><ul><li>Maharaja Agrasen Institute of Technology, Delhi — 1999</li><li>Maharaja Agrasen Institute of Management Studies, Delhi — 2003</li><li>Maharaja Agrasen Global School, Delhi — 2010</li><li>Maharaja Agrasen University, Baddi, Himachal Pradesh — 2013</li><li>Maharaja Agrasen Business School, Delhi — 2023</li></ul><p>The Institute of Technology and Institute of Management Studies are affiliated to Guru Gobind Singh Indraprastha University, Delhi. The school, established for education from Pre-primary onwards, was rated a School of Excellence by Indian Talent Olympiad in 2024.</p>',
-		),
-		'vision-and-mission' => array(
-			'<h2>आत्म दीपो भवः — Be your own light</h2><p>The school’s mission is expressed through the motto in its logo: “आत्म दीपो भवः”. It embodies a distinctive approach to education—the belief that true learning comes from within.</p><p>The traditional diya, or oil lamp, in the logo is a metaphor for an ignited inner light. In practical terms, the mission is to foster every student to their fullest potential and help them evolve into their best version through skill development, intellectual growth and a spirit of service to the community, the country and humanity.</p><p>To achieve this, the school is committed to effective pedagogy, sound teaching and learning practices, strong systems, a model ecosystem and qualified, fully motivated teachers.</p>',
-		),
-		'school-motto' => array(
-			'<h2>आत्म दीपो भवः</h2><p><strong>“Be your own light.”</strong></p><p>The diya in the school logo represents the inner light of knowledge, character, confidence and service.</p>',
-		),
-	);
-}
-
-function mags_core_normalize_page_content( $content ) {
-	$content = html_entity_decode( wp_strip_all_tags( (string) $content ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-	$content = preg_replace( '/\s+/u', ' ', $content );
-	return trim( (string) $content );
-}
-
-/**
- * Safely migrate only empty/starter pages or pages that still contain a known,
- * untouched earlier MAGS Core version. Administrator-authored copy is preserved.
- */
-function mags_core_migrate_approved_page_content( $ids ) {
-	$pages    = mags_core_official_pages();
-	$previous = mags_core_previous_approved_page_content();
-
-	foreach ( array( 'history', 'vision-and-mission', 'school-motto' ) as $slug ) {
-		if ( empty( $ids[ $slug ] ) || is_wp_error( $ids[ $slug ] ) || empty( $pages[ $slug ][1] ) ) { continue; }
-		$existing = get_post( $ids[ $slug ] );
-		if ( ! $existing instanceof WP_Post ) { continue; }
-
-		$existing_normalized = mags_core_normalize_page_content( $existing->post_content );
-		$known_previous      = false;
-		foreach ( $previous[ $slug ] as $previous_content ) {
-			if ( hash_equals( hash( 'sha256', mags_core_normalize_page_content( $previous_content ) ), hash( 'sha256', $existing_normalized ) ) ) {
-				$known_previous = true;
-				break;
-			}
-		}
-
-		if ( ! mags_core_is_starter_content( $existing->post_content ) && ! $known_previous ) { continue; }
-		wp_update_post(
-			array(
-				'ID'           => $existing->ID,
-				'post_title'   => $pages[ $slug ][0],
-				'post_content' => $pages[ $slug ][1],
-			)
-		);
-	}
-}
-
 function mags_core_find_page_by_slug( $slug ) {
 	$matches = get_posts(
 		array(
@@ -582,113 +532,70 @@ function mags_core_find_page_by_slug( $slug ) {
 	return $matches ? $matches[0] : null;
 }
 
+/**
+ * Create whatever is missing from the school-approved structure and nothing more.
+ * Pages that already exist are not renamed, rewritten, re-parented or deleted;
+ * the tagline, contact settings and an already chosen homepage are left alone.
+ */
 function mags_core_apply_official_structure() {
-	$pages = mags_core_official_pages();
-	$ids   = array();
+	$pages   = mags_core_official_pages();
+	$parents = array(
+		'about-the-school' => array( 'history', 'vision-and-mission', 'school-motto', 'patrons-message', 'chairmans-message', 'principals-message' ),
+		'infrastructure'   => array( 'laboratories', 'library', 'sports-facilities', 'student-activities' ),
+		'student-support'  => array( 'counselling', 'transport-facilities' ),
+		'admissions'       => array( 'fees', 'scholarships' ),
+	);
+	$parent_of = array();
+	foreach ( $parents as $parent_slug => $children ) { foreach ( $children as $child ) { $parent_of[ $child ] = $parent_slug; } }
+	$templates = array( 'contact-us' => 'template-contact.php', 'patrons-message' => 'template-leadership.php', 'chairmans-message' => 'template-leadership.php', 'principals-message' => 'template-leadership.php' );
+
+	$ids = array();
 	foreach ( $pages as $slug => $page ) {
 		$existing = mags_core_find_page_by_slug( $slug );
 		if ( $existing ) {
 			$ids[ $slug ] = $existing->ID;
-			if ( mags_core_is_starter_content( $existing->post_content ) && $page[1] !== '' ) {
-				wp_update_post( array( 'ID' => $existing->ID, 'post_title' => $page[0], 'post_content' => $page[1] ) );
-			}
-		} else {
-			$ids[ $slug ] = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $page[0], 'post_name' => $slug, 'post_content' => $page[1] ) );
+			// An existing page is only filled when it is completely empty.
+			if ( trim( wp_strip_all_tags( $existing->post_content ) ) === '' && $page[1] !== '' ) { wp_update_post( array( 'ID' => $existing->ID, 'post_content' => $page[1] ) ); }
+			continue;
 		}
+		$parent_slug  = $parent_of[ $slug ] ?? '';
+		$parent_id    = $parent_slug && ! empty( $ids[ $parent_slug ] ) && ! is_wp_error( $ids[ $parent_slug ] ) ? (int) $ids[ $parent_slug ] : 0;
+		$ids[ $slug ] = wp_insert_post( array( 'post_type' => 'page', 'post_status' => 'publish', 'post_title' => $page[0], 'post_name' => $slug, 'post_content' => $page[1], 'post_parent' => $parent_id ) );
 	}
 
-	$all_pages = get_posts( array( 'post_type' => 'page', 'post_status' => array( 'publish', 'draft', 'private', 'pending', 'future' ), 'posts_per_page' => -1, 'suppress_filters' => false ) );
-	foreach ( $pages as $slug => $page ) {
+	// A page template is added only where none has been chosen yet.
+	foreach ( $templates as $slug => $template ) {
 		if ( empty( $ids[ $slug ] ) || is_wp_error( $ids[ $slug ] ) ) { continue; }
-		foreach ( $all_pages as $candidate ) {
-			if ( (int) $candidate->ID === (int) $ids[ $slug ] ) { continue; }
-			if ( preg_match( '/^' . preg_quote( $slug, '/' ) . '-\d+$/', $candidate->post_name ) && trim( $candidate->post_content ) === trim( $page[1] ) ) { wp_delete_post( $candidate->ID, true ); }
-		}
+		if ( ! get_page_template_slug( $ids[ $slug ] ) ) { update_post_meta( $ids[ $slug ], '_wp_page_template', $template ); }
 	}
-
-	foreach ( array( 'history', 'vision-and-mission', 'school-motto', 'patrons-message', 'chairmans-message', 'principals-message' ) as $slug ) {
-		if ( ! empty( $ids[ $slug ] ) && ! empty( $ids['about-the-school'] ) && ! is_wp_error( $ids[ $slug ] ) ) { wp_update_post( array( 'ID' => $ids[ $slug ], 'post_parent' => $ids['about-the-school'] ) ); }
-	}
-	foreach ( array( 'laboratories', 'library', 'sports-facilities', 'student-activities' ) as $slug ) {
-		if ( ! empty( $ids[ $slug ] ) && ! empty( $ids['infrastructure'] ) && ! is_wp_error( $ids[ $slug ] ) ) { wp_update_post( array( 'ID' => $ids[ $slug ], 'post_parent' => $ids['infrastructure'] ) ); }
-	}
-	foreach ( array( 'counselling', 'transport-facilities' ) as $slug ) {
-		if ( ! empty( $ids[ $slug ] ) && ! empty( $ids['student-support'] ) && ! is_wp_error( $ids[ $slug ] ) ) { wp_update_post( array( 'ID' => $ids[ $slug ], 'post_parent' => $ids['student-support'] ) ); }
-	}
-	foreach ( array( 'fees', 'scholarships' ) as $slug ) {
-		if ( ! empty( $ids[ $slug ] ) && ! empty( $ids['admissions'] ) && ! is_wp_error( $ids[ $slug ] ) ) { wp_update_post( array( 'ID' => $ids[ $slug ], 'post_parent' => $ids['admissions'] ) ); }
-	}
-
-	if ( ! empty( $ids['contact-us'] ) && ! is_wp_error( $ids['contact-us'] ) ) { update_post_meta( $ids['contact-us'], '_wp_page_template', 'template-contact.php' ); }
-	foreach ( array( 'patrons-message', 'chairmans-message', 'principals-message' ) as $slug ) { if ( ! empty( $ids[ $slug ] ) && ! is_wp_error( $ids[ $slug ] ) ) { update_post_meta( $ids[ $slug ], '_wp_page_template', 'template-leadership.php' ); } }
-	if ( ! empty( $ids['home'] ) && ! is_wp_error( $ids['home'] ) ) { update_option( 'show_on_front', 'page' ); update_option( 'page_on_front', $ids['home'] ); }
-	if ( ! empty( $ids['news-and-events'] ) && ! is_wp_error( $ids['news-and-events'] ) ) { update_option( 'page_for_posts', $ids['news-and-events'] ); }
+	if ( ! empty( $ids['home'] ) && ! is_wp_error( $ids['home'] ) && ( 'page' !== get_option( 'show_on_front' ) || ! get_post( (int) get_option( 'page_on_front' ) ) ) ) { update_option( 'show_on_front', 'page' ); update_option( 'page_on_front', $ids['home'] ); }
+	if ( ! empty( $ids['news-and-events'] ) && ! is_wp_error( $ids['news-and-events'] ) && ! get_post( (int) get_option( 'page_for_posts' ) ) ) { update_option( 'page_for_posts', $ids['news-and-events'] ); }
 
 	$options = (array) get_option( 'mags_core_settings', array() );
-	if ( empty( $options['address'] ) || $options['address'] === 'Maharaja Agrasen Global School, Delhi, India' ) { $options['address'] = '1, Lakhi Ram Park, Opp. Sector-22, Rohini, Delhi-110086'; }
-	if ( isset( $options['phone'] ) && $options['phone'] === '011-0000 0000' ) { $options['phone'] = ''; }
-	if ( isset( $options['email'] ) && $options['email'] === 'info@mags.edu.in' ) { $options['email'] = ''; }
-	update_option( 'mags_core_settings', $options );
+	if ( empty( $options['address'] ) ) { $options['address'] = '1, Lakhi Ram Park, Opp. Sector-22, Rohini, Delhi-110086'; update_option( 'mags_core_settings', $options ); }
 	if ( get_option( 'blogname' ) === 'My WordPress' ) { update_option( 'blogname', 'Maharaja Agrasen Global School' ); }
-	update_option( 'blogdescription', 'आत्म दीपो भवः — Be your own light' );
+	if ( trim( (string) get_option( 'blogdescription' ) ) === '' || get_option( 'blogdescription' ) === 'Just another WordPress site' ) { update_option( 'blogdescription', 'आत्म दीपो भवः — Be your own light' ); }
 	return array( $pages, $ids );
 }
 
-function mags_core_ensure_primary_menu( $pages, $ids ) {
-	$menu_name = 'MAGS Primary';
-	$menu      = wp_get_nav_menu_object( $menu_name );
-	$menu_id   = $menu ? $menu->term_id : wp_create_nav_menu( $menu_name );
-	if ( is_wp_error( $menu_id ) ) { return; }
-
-	$existing_items = (array) wp_get_nav_menu_items( $menu_id );
-	$existing_pages = array();
-	$menu_items_by_page = array();
-	$subpage_ids = array_filter( array( isset( $ids['history'] ) ? (int) $ids['history'] : 0, isset( $ids['vision-and-mission'] ) ? (int) $ids['vision-and-mission'] : 0 ) );
-	foreach ( $existing_items as $item ) {
-		if ( $item->type !== 'post_type' || $item->object !== 'page' ) { continue; }
-		if ( (int) $item->menu_item_parent === 0 && in_array( (int) $item->object_id, $subpage_ids, true ) ) { wp_delete_post( $item->ID, true ); continue; }
-		$existing_pages[] = (int) $item->object_id;
-		$menu_items_by_page[ (int) $item->object_id ] = (int) $item->ID;
-	}
-	foreach ( array( 'home', 'about-the-school', 'academics', 'infrastructure', 'student-activities', 'admissions', 'news-and-events', 'contact-us' ) as $slug ) {
-		if ( empty( $ids[ $slug ] ) || is_wp_error( $ids[ $slug ] ) || in_array( (int) $ids[ $slug ], $existing_pages, true ) ) { continue; }
-		$item_id = wp_update_nav_menu_item( $menu_id, 0, array( 'menu-item-title' => $pages[ $slug ][0], 'menu-item-object' => 'page', 'menu-item-object-id' => $ids[ $slug ], 'menu-item-type' => 'post_type', 'menu-item-status' => 'publish' ) );
-		if ( ! is_wp_error( $item_id ) ) { $existing_pages[] = (int) $ids[ $slug ]; $menu_items_by_page[ (int) $ids[ $slug ] ] = (int) $item_id; }
-	}
-
-	$submenu_pages = array(
-		'student-activities' => array( 'counselling', 'transport-facilities' ),
-		'admissions'         => array( 'fees', 'scholarships' ),
-	);
-	foreach ( $submenu_pages as $parent_slug => $child_slugs ) {
-		if ( empty( $ids[ $parent_slug ] ) || empty( $menu_items_by_page[ (int) $ids[ $parent_slug ] ] ) ) { continue; }
-		$parent_item_id = $menu_items_by_page[ (int) $ids[ $parent_slug ] ];
-		foreach ( $child_slugs as $child_slug ) {
-			if ( empty( $ids[ $child_slug ] ) || is_wp_error( $ids[ $child_slug ] ) ) { continue; }
-			$child_page_id = (int) $ids[ $child_slug ];
-			$child_item_id = isset( $menu_items_by_page[ $child_page_id ] ) ? $menu_items_by_page[ $child_page_id ] : 0;
-			$updated_item  = wp_update_nav_menu_item( $menu_id, $child_item_id, array( 'menu-item-title' => $pages[ $child_slug ][0], 'menu-item-object' => 'page', 'menu-item-object-id' => $child_page_id, 'menu-item-type' => 'post_type', 'menu-item-parent-id' => $parent_item_id, 'menu-item-status' => 'publish' ) );
-			if ( ! is_wp_error( $updated_item ) ) { $menu_items_by_page[ $child_page_id ] = (int) $updated_item; }
-		}
-	}
-	$locations            = (array) get_theme_mod( 'nav_menu_locations', array() );
-	$locations['primary'] = $menu_id;
-	set_theme_mod( 'nav_menu_locations', $locations );
-}
-
 /**
- * Rebuild the plugin-managed menu in the order supplied by the school.
- * Page content remains editable; only the managed navigation hierarchy changes.
+ * Create the plugin-managed menu in the order supplied by the school.
+ * This only fills an empty menu. Once the Primary menu has items, or the school
+ * has assigned its own menu to the Primary location, nothing is deleted,
+ * rebuilt or reassigned, so changes made under Appearance → Menus are kept.
  */
 function mags_core_ensure_primary_menu_v2( $pages, $ids ) {
-	$menu_name = 'MAGS Primary';
-	$menu      = wp_get_nav_menu_object( $menu_name );
-	$menu_id   = $menu ? $menu->term_id : wp_create_nav_menu( $menu_name );
+	$locations = (array) get_theme_mod( 'nav_menu_locations', array() );
+	$assigned  = ! empty( $locations['primary'] ) ? wp_get_nav_menu_object( (int) $locations['primary'] ) : false;
+	$menu      = $assigned ?: wp_get_nav_menu_object( 'MAGS Primary' );
+	$menu_id   = $menu ? (int) $menu->term_id : wp_create_nav_menu( 'MAGS Primary' );
 	if ( is_wp_error( $menu_id ) ) { return; }
 
-	foreach ( (array) wp_get_nav_menu_items( $menu_id ) as $item ) {
-		wp_delete_post( (int) $item->ID, true );
+	if ( ! $assigned ) {
+		$locations['primary'] = $menu_id;
+		set_theme_mod( 'nav_menu_locations', $locations );
 	}
+	if ( wp_get_nav_menu_items( $menu_id, array( 'post_status' => 'any' ) ) ) { return; }
 
 	$position = 1;
 	$add_page = static function ( $slug, $title = '', $parent = 0 ) use ( $menu_id, $pages, $ids, &$position ) {
@@ -726,16 +633,11 @@ function mags_core_ensure_primary_menu_v2( $pages, $ids ) {
 	$add_custom( 'Downloads', get_post_type_archive_link( 'mags_download' ) ?: home_url( '/downloads/' ), $updates_item );
 	$add_custom( 'Gallery', get_post_type_archive_link( 'mags_gallery' ) ?: home_url( '/gallery/' ), $updates_item );
 	$add_page( 'contact-us', 'Contact' );
-
-	$locations            = (array) get_theme_mod( 'nav_menu_locations', array() );
-	$locations['primary'] = $menu_id;
-	set_theme_mod( 'nav_menu_locations', $locations );
 }
 
 function mags_core_upgrade_official_content() {
 	if ( (int) get_option( 'mags_core_content_version', 0 ) >= 11 ) { return; }
 	list( $pages, $ids ) = mags_core_apply_official_structure();
-	mags_core_migrate_approved_page_content( $ids );
 	mags_core_ensure_download_types();
 	mags_core_ensure_primary_menu_v2( $pages, $ids );
 	update_option( 'mags_core_content_version', 11 );
@@ -745,7 +647,6 @@ add_action( 'init', 'mags_core_upgrade_official_content', 20 );
 function mags_core_run_setup() {
 	if ( ! is_admin() || ! current_user_can( 'manage_options' ) || empty( $_POST['mags_core_run_setup'] ) ) { return; } if ( ! isset( $_POST['mags_core_setup_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['mags_core_setup_nonce'] ) ), 'mags_core_run_setup' ) ) { return; }
 	list( $pages, $ids ) = mags_core_apply_official_structure();
-	mags_core_migrate_approved_page_content( $ids );
 	mags_core_ensure_download_types();
 	mags_core_ensure_primary_menu_v2( $pages, $ids );
 	update_option( 'mags_core_content_version', 11 ); update_option( 'mags_core_setup_done', 1 ); delete_option( 'mags_core_needs_setup' ); flush_rewrite_rules(); wp_safe_redirect( add_query_arg( 'mags_setup', 'done', admin_url( 'tools.php?page=mags-core-setup' ) ) ); exit;

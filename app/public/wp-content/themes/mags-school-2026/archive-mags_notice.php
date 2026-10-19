@@ -27,7 +27,7 @@ get_header();
 		<div class="archive-grid">
 			<?php if ( have_posts() ) : while ( have_posts() ) : the_post(); ?>
 				<article class="card document-card">
-					<p class="eyebrow"><?php echo esc_html( get_the_date() ); ?></p>
+					<p class="eyebrow"><?php echo esc_html( get_the_date( 'j F Y' ) ); ?></p>
 					<h3><?php the_title(); ?></h3>
 					<?php if ( get_the_excerpt() ) : ?><p><?php echo esc_html( get_the_excerpt() ); ?></p><?php endif; ?>
 					<a class="button button--outline" href="<?php echo esc_url( mags_school_document_link() ); ?>" aria-label="<?php echo esc_attr( sprintf( 'Open notice: %s', get_the_title() ) ); ?>">Open notice</a>

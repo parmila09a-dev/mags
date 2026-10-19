@@ -81,6 +81,85 @@ function mags_school_attachment_alt( $attachment_id, $fallback = '' ) {
 	return $caption ?: $fallback;
 }
 
+/** Event date as readers expect it (29 June 2026) instead of the stored 2026-06-29. */
+function mags_school_event_date( $post_id = 0, $format = 'j F Y' ) {
+	$date = trim( (string) get_post_meta( $post_id ?: get_the_ID(), '_mags_event_date', true ) );
+	if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ) { return $date; }
+	return mysql2date( $format, $date . ' 00:00:00' );
+}
+
+/** Date line for a News/Event card: the event date for events, otherwise the publish date. */
+function mags_school_update_date( $post_id = 0 ) {
+	$post_id    = $post_id ?: get_the_ID();
+	$event_date = 'mags_event' === get_post_type( $post_id ) ? mags_school_event_date( $post_id ) : '';
+	return $event_date ?: get_the_date( 'j F Y', $post_id );
+}
+
+/**
+ * Homepage News & Events: items ticked under “Homepage promotion” come first
+ * (newest first), then the remaining places are filled with the latest items.
+ */
+function mags_school_homepage_updates( $limit = 3 ) {
+	$base     = array( 'post_type' => array( 'post', 'mags_event' ), 'post_status' => 'publish', 'orderby' => 'date', 'order' => 'DESC', 'no_found_rows' => true );
+	$featured = get_posts( array_merge( $base, array( 'posts_per_page' => $limit, 'meta_key' => '_mags_featured_homepage', 'meta_value' => '1' ) ) );
+	if ( count( $featured ) >= $limit ) { return $featured; }
+
+	$latest = new WP_Query( array_merge( $base, array( 'posts_per_page' => $limit, 'post__not_in' => wp_list_pluck( $featured, 'ID' ), 'ignore_sticky_posts' => false ) ) );
+	return array_slice( array_merge( $featured, $latest->posts ), 0, $limit );
+}
+
+/** Events whose event date is today or later, soonest first. */
+function mags_school_upcoming_events( $limit = 4 ) {
+	return get_posts(
+		array(
+			'post_type'      => 'mags_event',
+			'post_status'    => 'publish',
+			'posts_per_page' => $limit,
+			'no_found_rows'  => true,
+			'meta_query'     => array( 'event_date' => array( 'key' => '_mags_event_date', 'value' => current_time( 'Y-m-d' ), 'compare' => '>=' ) ),
+			'orderby'        => array( 'event_date' => 'ASC' ),
+		)
+	);
+}
+
+/**
+ * Albums for the homepage gallery section. Albums ticked “Show this album in
+ * the homepage” are used; when none is ticked the newest albums are shown.
+ */
+function mags_school_homepage_albums( $limit = 3 ) {
+	$base   = array( 'post_type' => 'mags_gallery', 'post_status' => 'publish', 'orderby' => 'date', 'order' => 'DESC', 'no_found_rows' => true );
+	$chosen = get_posts( array_merge( $base, array( 'posts_per_page' => $limit, 'meta_key' => '_mags_gallery_homepage', 'meta_value' => '1' ) ) );
+	if ( $chosen ) { return $chosen; }
+
+	$albums = array();
+	foreach ( get_posts( array_merge( $base, array( 'posts_per_page' => $limit + 2 ) ) ) as $album ) {
+		if ( in_array( $album->post_name, array( 'new-academic-session-2026-27-vedic-havan', 'homepage-hero' ), true ) ) { continue; }
+		$albums[] = $album;
+	}
+	return array_slice( $albums, 0, $limit );
+}
+
+/** Name, role and photograph saved on a leadership message page, with the approved defaults. */
+function mags_school_leader_profile( $slug, $page = null ) {
+	$image_base = trailingslashit( get_theme_file_uri( '/assets/images' ) );
+	$defaults   = array(
+		'patrons-message'    => array( 'name' => 'Dr. Nand Kishore Garg', 'role' => 'Patron', 'image' => $image_base . 'patron-dr-nand-kishore-garg.jpg', 'width' => 267, 'height' => 244 ),
+		'chairmans-message'  => array( 'name' => 'Er. T. R. Garg', 'role' => 'Chairman', 'image' => $image_base . 'chairman-tr-garg.jpg', 'width' => 1000, 'height' => 1024 ),
+		'principals-message' => array( 'name' => 'Meetu Aggarwal', 'role' => 'Principal', 'image' => $image_base . 'principal-meetu-aggarwal.png', 'width' => 195, 'height' => 258 ),
+	);
+	$profile    = $defaults[ $slug ] ?? array( 'name' => $page ? get_the_title( $page ) : '', 'role' => 'School Leadership', 'image' => '', 'width' => 0, 'height' => 0 );
+	$profile['image_id'] = 0;
+
+	if ( $page ) {
+		$name = trim( (string) get_post_meta( $page->ID, '_mags_leader_name', true ) );
+		$role = trim( (string) get_post_meta( $page->ID, '_mags_leader_role', true ) );
+		if ( '' !== $name ) { $profile['name'] = $name; }
+		if ( '' !== $role ) { $profile['role'] = $role; }
+		$profile['image_id'] = (int) get_post_thumbnail_id( $page );
+	}
+	return $profile;
+}
+
 /**
  * Curated school-supplied photographs used when no CMS gallery albums exist.
  * Keep this list general: it deliberately avoids identifying individual students.

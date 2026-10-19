@@ -29,10 +29,10 @@ Do not copy theme files alone and expect CMS Gallery Albums to move. Album photo
 
 1. Install WordPress using a new database and unique database user.
 2. Copy `mags-school-2026` to `wp-content/themes/`.
-3. Copy the bundled `mags-core` and `mags-security` directories to `wp-content/plugins/`.
+3. Copy the `mags-core` and `mags-security` plugin directories to `wp-content/plugins/`. They live in the repository's `wp-content/plugins/` folder, not inside the theme.
 4. Activate **MAGS Core**, **MAGS Security Baseline** and **MAGS School 2026**.
 5. Open **Tools → MAGS Site Setup**, choose **Create / verify site structure**, then set **Settings → Permalinks → Post name**.
-6. Import/recreate only approved pages and media. Use the starter XML only when appropriate and review every item before publication.
+6. Import/recreate only approved pages and media and review every item before publication.
 7. Upload optimized, consent-approved photographs to the Media Library; add alternative text and create/publish the required CMS Gallery Albums.
 
 ## 3. Configure MAGS Settings
@@ -101,19 +101,7 @@ define( 'WP_ENVIRONMENT_TYPE', 'production' );
 
 Keep debug output disabled publicly. Store database, SMTP and service credentials in the host's approved secret/configuration facility, never in theme files or documentation.
 
-## 8. Docker staging
-
-For reproducible local/staging use, copy `.env.example` to `.env`, replace all example passwords with unique random values, then run:
-
-```powershell
-docker compose up -d
-```
-
-Open `http://127.0.0.1:8080`, complete WordPress installation and follow the clean-install steps above. Database and uploads persist in Docker volumes; theme/plugins are bind-mounted read-only to prevent dashboard source editing.
-
-For a public deployment, place WordPress behind the organization's approved HTTPS reverse proxy or managed host. Do not expose the staging bind address as the final production service. Pin and review WordPress/container patch versions as part of scheduled maintenance.
-
-## 9. Final verification and operations
+## 8. Final verification and operations
 
 - **Before release:** take database/uploads backups; record WordPress, PHP, theme and plugin versions; complete `PRE-LAUNCH-CHECKLIST.md`.
 - **After migration/update:** verify homepage, navigation, Notice/archive order, PDFs, Download categories, News/Events promotion, Gallery Albums, Contact map/form, Enquiry record and login.
