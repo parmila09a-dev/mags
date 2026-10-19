@@ -1,11 +1,13 @@
 <?php
-/** Teacher: share notes files with own classes. */
+/** Teacher: share notes files with own classes, remove and restore them. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 $erp_classes   = mags_erp_teacher_classes( $ctx['user']->ID );
 $erp_class_map = array();
 foreach ( $erp_classes as $erp_class ) { $erp_class_map[ (int) $erp_class->id ] = $erp_class; }
 $erp_notes = mags_erp_classes_notes( array_keys( $erp_class_map ) );
+$erp_gone  = array();
+foreach ( mags_erp_classes_notes( array_keys( $erp_class_map ), 100, true ) as $erp_note ) { $erp_gone[] = array( (int) $erp_note->id, $erp_note->title, mags_erp_class_label( $erp_class_map[ (int) $erp_note->class_id ] ) . ' · removed ' . mags_erp_format_datetime( $erp_note->hidden_at, 'j M Y' ) ); }
 ?>
 <header class="erp-head">
 	<p class="erp-eyebrow">Teacher</p>
@@ -44,7 +46,7 @@ $erp_notes = mags_erp_classes_notes( array_keys( $erp_class_map ) );
 							<?php mags_erp_file_link( (int) $erp_note->file_id ); ?>
 						</div>
 						<div class="erp-row__actions">
-							<form method="post" action="<?php echo esc_url( mags_erp_url( 'notes' ) ); ?>" data-erp-confirm="<?php echo esc_attr( 'Remove “' . $erp_note->title . '”? Students will no longer be able to download it.' ); ?>">
+							<form method="post" action="<?php echo esc_url( mags_erp_url( 'notes' ) ); ?>" data-erp-confirm="<?php echo esc_attr( 'Remove “' . $erp_note->title . '”? Students will no longer be able to download it. The file is kept and you can restore it.' ); ?>">
 								<?php mags_erp_form_fields( 'delete_note' ); ?>
 								<input type="hidden" name="note_id" value="<?php echo esc_attr( $erp_note->id ); ?>">
 								<button class="erp-btn erp-btn--danger erp-btn--sm" type="submit">Remove</button>
@@ -54,5 +56,6 @@ $erp_notes = mags_erp_classes_notes( array_keys( $erp_class_map ) );
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
+		<?php mags_erp_removed_list( $erp_gone, 'delete_note', 'note_id', 'notes', 'Removed notes' ); ?>
 	</section>
 <?php endif; ?>

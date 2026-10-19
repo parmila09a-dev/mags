@@ -1,5 +1,5 @@
 <?php
-/** Office: add teachers, give them classes, reset passwords. */
+/** Office: add teachers, give them classes, reset passwords, remove and restore. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 $erp_classes   = mags_erp_get_classes();
@@ -7,8 +7,10 @@ $erp_class_map = array();
 foreach ( $erp_classes as $erp_class ) { $erp_class_map[ (int) $erp_class->id ] = mags_erp_class_label( $erp_class ); }
 $erp_teachers  = mags_erp_get_teachers();
 $erp_edit_id   = isset( $_GET['edit'] ) ? absint( $_GET['edit'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification
-$erp_edit      = $erp_edit_id && mags_erp_is_managed_user( $erp_edit_id, 'mags_teacher' ) ? get_userdata( $erp_edit_id ) : null;
+$erp_edit      = $erp_edit_id && mags_erp_is_managed_user( $erp_edit_id, 'mags_teacher' ) && ! mags_erp_is_removed_user( $erp_edit_id ) ? get_userdata( $erp_edit_id ) : null;
 $erp_edit_own  = $erp_edit ? mags_erp_teacher_class_ids( $erp_edit->ID ) : array();
+$erp_removed   = array();
+foreach ( mags_erp_get_teachers( true ) as $erp_teacher ) { $erp_removed[] = array( (int) $erp_teacher->ID, $erp_teacher->display_name, 'Login ID: ' . $erp_teacher->user_login . ' · removed ' . mags_erp_format_datetime( get_user_meta( $erp_teacher->ID, 'mags_erp_removed', true ), 'j M Y' ) ); }
 ?>
 <header class="erp-head">
 	<p class="erp-eyebrow">School office</p>
@@ -29,7 +31,7 @@ $erp_edit_own  = $erp_edit ? mags_erp_teacher_class_ids( $erp_edit->ID ) : array
 			<?php endif; ?>
 		</div>
 		<fieldset class="erp-checks">
-			<legend>Classes this teacher marks</legend>
+			<legend>Classes this teacher teaches</legend>
 			<?php if ( ! $erp_class_map ) : ?>
 				<p class="erp-hint">No classes yet. <a href="<?php echo esc_url( mags_erp_url( 'classes' ) ); ?>">Add classes</a> first, then tick them here.</p>
 			<?php endif; ?>
@@ -37,6 +39,7 @@ $erp_edit_own  = $erp_edit ? mags_erp_teacher_class_ids( $erp_edit->ID ) : array
 				<label class="erp-pill"><input type="checkbox" name="class_ids[]" value="<?php echo esc_attr( $erp_class_id ); ?>" <?php checked( in_array( $erp_class_id, $erp_edit_own, true ) ); ?>><span><?php echo esc_html( $erp_class_label ); ?></span></label>
 			<?php endforeach; ?>
 		</fieldset>
+		<p class="erp-hint">In a ticked class the teacher marks attendance, gives homework, notes and notices, enters exam marks and can be put in the timetable.</p>
 		<div class="erp-form__actions">
 			<button class="erp-btn erp-btn--orange" type="submit"><?php echo $erp_edit ? 'Save teacher' : 'Add teacher'; ?></button>
 			<?php if ( $erp_edit ) : ?><a class="erp-btn erp-btn--ghost" href="<?php echo esc_url( mags_erp_url( 'teachers' ) ); ?>">Cancel</a><?php endif; ?>
@@ -64,7 +67,7 @@ $erp_edit_own  = $erp_edit ? mags_erp_teacher_class_ids( $erp_edit->ID ) : array
 							<input type="hidden" name="kind" value="teacher"><input type="hidden" name="teacher_id" value="<?php echo esc_attr( $erp_teacher->ID ); ?>">
 							<button class="erp-btn erp-btn--ghost erp-btn--sm" type="submit">New password</button>
 						</form>
-						<form method="post" action="<?php echo esc_url( mags_erp_url( 'teachers' ) ); ?>" data-erp-confirm="<?php echo esc_attr( 'Remove ' . $erp_teacher->display_name . '? Their login will be deleted.' ); ?>">
+						<form method="post" action="<?php echo esc_url( mags_erp_url( 'teachers' ) ); ?>" data-erp-confirm="<?php echo esc_attr( 'Remove ' . $erp_teacher->display_name . '? They will not be able to sign in. Their homework, notes and marks are kept, and you can restore them later.' ); ?>">
 							<?php mags_erp_form_fields( 'delete_teacher' ); ?>
 							<input type="hidden" name="teacher_id" value="<?php echo esc_attr( $erp_teacher->ID ); ?>">
 							<button class="erp-btn erp-btn--danger erp-btn--sm" type="submit">Remove</button>
@@ -74,4 +77,5 @@ $erp_edit_own  = $erp_edit ? mags_erp_teacher_class_ids( $erp_edit->ID ) : array
 			<?php endforeach; ?>
 		</ul>
 	<?php endif; ?>
+	<?php mags_erp_removed_list( $erp_removed, 'delete_teacher', 'teacher_id', 'teachers', 'Removed teachers' ); ?>
 </section>

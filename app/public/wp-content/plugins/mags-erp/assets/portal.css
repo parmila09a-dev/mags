@@ -1646,3 +1646,1011 @@ html {
 		grid-column: auto;
 	}
 }
+
+/* More sections: menu screen, tabs, tables, timetable, messages, fees, removed items */
+
+/* A wide table scrolls inside its own box and never widens the page. */
+.erp-main {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.erp-form,
+.erp-form__grid,
+.erp-sheet {
+	grid-template-columns: minmax(0, 1fr);
+}
+.erp-nav a {
+	position: relative;
+}
+
+.erp-nav__count {
+	position: absolute;
+	top: 3px;
+	left: calc(50% + 6px);
+	display: grid;
+	place-items: center;
+	min-width: 19px;
+	height: 19px;
+	padding: 0 5px;
+	border-radius: 999px;
+	color: var(--erp-navy);
+	background: var(--erp-orange);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, .3);
+	font-size: .66rem;
+	font-weight: 900;
+	line-height: 1;
+}
+
+.erp-nav a[aria-current="page"] .erp-nav__count {
+	color: #fff;
+	background: var(--erp-navy);
+}
+
+.erp-menu {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	list-style: none;
+}
+
+.erp-menu__item {
+	display: grid;
+	justify-items: start;
+	gap: 8px;
+	height: 100%;
+	min-height: 112px;
+	padding: 16px;
+	border-radius: 24px;
+	color: var(--erp-navy);
+	background: var(--erp-clay);
+	box-shadow: var(--erp-raised-sm);
+	text-decoration: none;
+}
+
+.erp-menu__item:active {
+	box-shadow: var(--erp-pressed);
+}
+
+.erp-menu__icon {
+	display: grid;
+	place-items: center;
+	width: 46px;
+	height: 46px;
+	border-radius: 16px;
+	color: var(--erp-navy);
+	background: var(--erp-blue-soft);
+	box-shadow: inset 2px 2px 4px rgba(255, 255, 255, .9), inset -3px -3px 6px rgba(40, 40, 80, .12);
+}
+
+.erp-menu li:nth-child(3n + 2) .erp-menu__icon {
+	background: var(--erp-green-soft);
+}
+
+.erp-menu li:nth-child(3n) .erp-menu__icon {
+	background: var(--erp-orange-soft);
+}
+
+.erp-menu__item strong {
+	font-size: 1rem;
+	line-height: 1.2;
+	overflow-wrap: anywhere;
+}
+
+/* Tabs: links that look like the segmented choice */
+.erp-seg--tabs {
+	gap: 6px;
+}
+
+.erp-seg--tabs .erp-seg__item {
+	text-decoration: none;
+}
+
+.erp-seg--tabs .erp-seg__item span {
+	padding-inline: 4px;
+}
+
+.erp-seg--tabs .erp-seg__item[aria-current="true"] span {
+	color: var(--erp-navy);
+	background: linear-gradient(145deg, #ffa23d, var(--erp-orange));
+	box-shadow: 0 6px 12px rgba(40, 40, 80, .2), inset 0 3px 4px rgba(255, 255, 255, .6), inset 0 -5px 7px rgba(152, 72, 0, .3);
+}
+
+.erp-tabs__title {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	margin: 16px 0 12px;
+}
+
+/* Small layout helpers */
+.erp-subtitle {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin: 16px 4px 10px;
+}
+
+.erp-list--tight {
+	gap: 8px;
+}
+
+.erp-list + .erp-subtitle {
+	margin-top: 20px;
+}
+
+.erp-hint--lead {
+	margin: 0 4px 14px;
+}
+
+.erp-list + .erp-hint--lead {
+	margin-top: 12px;
+}
+
+.erp-card__actions,
+.erp-flash__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 14px;
+}
+
+.erp-files {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.erp-files .erp-filelink {
+	margin-top: 0;
+}
+
+.erp-field--wide {
+	grid-column: 1 / -1;
+}
+
+.erp-filter--one,
+.erp-filter--report {
+	margin-bottom: 0;
+	padding: 16px;
+}
+
+.erp-filter .erp-check {
+	align-self: center;
+}
+
+.erp-pill--sm {
+	min-height: 44px;
+	padding: 0 12px 0 10px;
+	font-size: .86rem;
+}
+
+.erp-steps--plain li {
+	grid-template-columns: 40px minmax(0, 1fr);
+}
+
+.erp-steps--plain {
+	margin-bottom: 16px;
+}
+
+/* Things that wait for someone */
+.erp-card--alert {
+	box-shadow: var(--erp-raised), inset 5px 0 0 var(--erp-orange);
+}
+
+.erp-alerts {
+	display: grid;
+	gap: 10px;
+	list-style: none;
+}
+
+.erp-alerts li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	font-weight: 700;
+}
+
+.erp-alerts li span {
+	flex: 1 1 220px;
+	min-width: 0;
+}
+
+.erp-flash__lines {
+	display: grid;
+	gap: 6px;
+	margin: 10px 0 0;
+	padding-left: 20px;
+	font-weight: 600;
+}
+
+.erp-credentials--list {
+	display: block;
+	padding: 4px;
+}
+
+.erp-credentials--list .erp-table th,
+.erp-credentials--list .erp-table td {
+	padding: 9px 7px;
+}
+
+.erp-credentials--list .erp-table code {
+	font-size: .86rem;
+	letter-spacing: 0;
+}
+
+/* Removed items are kept, shown apart and greyed */
+.erp-removed {
+	margin-top: 16px;
+}
+
+.erp-removed > summary {
+	display: inline-flex;
+	list-style: none;
+	cursor: pointer;
+}
+
+.erp-removed > summary::-webkit-details-marker {
+	display: none;
+}
+
+.erp-removed[open] > summary {
+	box-shadow: var(--erp-pressed);
+}
+
+.erp-removed > .erp-hint {
+	margin: 12px 4px;
+}
+
+.erp-removed .erp-count {
+	min-width: 24px;
+	height: 24px;
+	font-size: .78rem;
+}
+
+.erp-row--off {
+	background: #e9ecf8;
+	box-shadow: var(--erp-pressed);
+}
+
+.erp-row--off .erp-row__main strong {
+	color: var(--erp-muted);
+}
+
+.erp-row--off .erp-row__main > strong:first-child {
+	text-decoration: line-through;
+	text-decoration-thickness: 1px;
+}
+
+/* Tables: reports, marks, timetable week, login lists */
+.erp-table-wrap {
+	max-width: 100%;
+	overflow-x: auto;
+	border-radius: var(--erp-radius-sm);
+	background: #edf0fb;
+	box-shadow: var(--erp-pressed);
+	-webkit-overflow-scrolling: touch;
+}
+
+.erp-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: .92rem;
+}
+
+.erp-table th,
+.erp-table td {
+	padding: 10px 12px;
+	border-bottom: 1px solid rgba(40, 40, 80, .1);
+	text-align: left;
+	vertical-align: top;
+}
+
+.erp-table thead th {
+	color: var(--erp-muted);
+	font-size: .78rem;
+	font-weight: 800;
+	letter-spacing: .04em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+.erp-table tbody th {
+	font-weight: 800;
+}
+
+.erp-table tbody tr:last-child > * {
+	border-bottom: 0;
+}
+
+.erp-table tfoot > tr > * {
+	border-top: 2px solid rgba(40, 40, 80, .2);
+	border-bottom: 0;
+	font-weight: 800;
+}
+
+.erp-table small {
+	display: block;
+	color: var(--erp-muted);
+	font-size: .78rem;
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.erp-table .erp-num {
+	text-align: right;
+	white-space: nowrap;
+}
+
+.erp-table code {
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: .95rem;
+}
+
+.erp-table--week {
+	min-width: 760px;
+	table-layout: fixed;
+}
+
+.erp-table--week th:first-child {
+	width: 108px;
+}
+
+.erp-table--week td {
+	border-left: 1px solid rgba(40, 40, 80, .08);
+	overflow-wrap: anywhere;
+}
+
+.erp-table--week tr.is-break td {
+	color: var(--erp-orange-text);
+	background: var(--erp-orange-soft);
+	text-align: center;
+	font-weight: 800;
+}
+
+/* Timetable of one day */
+.erp-tt {
+	display: grid;
+	gap: 8px;
+	list-style: none;
+}
+
+.erp-tt__row {
+	display: grid;
+	grid-template-columns: 92px minmax(0, 1fr);
+	gap: 12px;
+	align-items: center;
+	padding: 10px 12px;
+	border-radius: 18px;
+	background: #edf0fb;
+	box-shadow: var(--erp-pressed);
+}
+
+.erp-tt__time,
+.erp-tt__what {
+	display: grid;
+	gap: 1px;
+	min-width: 0;
+}
+
+.erp-tt__time strong {
+	font-size: 1.05rem;
+	overflow-wrap: anywhere;
+}
+
+.erp-tt__time span,
+.erp-tt__what span {
+	color: var(--erp-muted);
+	font-size: .8rem;
+	font-weight: 700;
+}
+
+.erp-tt__what strong {
+	overflow-wrap: anywhere;
+}
+
+.erp-tt__row.is-break {
+	color: var(--erp-orange-text);
+	background: var(--erp-orange-soft);
+}
+
+.erp-tt__row.is-free .erp-tt__what span {
+	font-size: .92rem;
+}
+
+.erp-tt__row.is-now {
+	background: var(--erp-green-soft);
+	box-shadow: var(--erp-raised-sm), inset 5px 0 0 var(--erp-green);
+}
+
+.erp-tt__pick {
+	display: grid;
+	gap: 8px;
+	min-width: 0;
+}
+
+.erp-tt__pick select {
+	min-height: 46px;
+	background-color: var(--erp-clay);
+	box-shadow: var(--erp-raised-sm);
+}
+
+/* Marks sheet */
+.erp-mark__entry {
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: 8px;
+}
+
+.erp-mark__entry .erp-field {
+	width: 82px;
+}
+
+.erp-mark__entry input[type="text"] {
+	min-height: 48px;
+	padding: 0 8px;
+	text-align: center;
+	font-weight: 800;
+}
+
+.erp-mark__entry input[type="text"]:disabled {
+	opacity: .55;
+	box-shadow: none;
+}
+
+/* Questions */
+.erp-thread {
+	display: grid;
+	gap: 12px;
+	list-style: none;
+}
+
+.erp-msg {
+	justify-self: start;
+	width: min(100%, 640px);
+	padding: 14px 16px;
+	border-radius: 22px 22px 22px 8px;
+	background: var(--erp-clay);
+	box-shadow: var(--erp-raised-sm);
+}
+
+.erp-msg--teacher {
+	color: var(--erp-green-text);
+	background: var(--erp-green-soft);
+}
+
+.erp-msg.is-mine {
+	justify-self: end;
+	border-radius: 22px 22px 8px;
+}
+
+.erp-msg__who {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 4px 10px;
+	margin-bottom: 6px;
+	font-size: .86rem;
+}
+
+.erp-msg__who span {
+	color: var(--erp-muted);
+	font-weight: 600;
+}
+
+.erp-msg__text {
+	color: var(--erp-ink);
+	overflow-wrap: anywhere;
+}
+
+.erp-decide {
+	align-content: start;
+}
+
+/* Money can be long: one amount per line on a phone, three boxes on wider screens */
+.erp-tally--money {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.erp-tally--money .erp-tally__item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 2px 12px;
+	padding: 10px 16px;
+	text-align: left;
+}
+
+.erp-tally--money dt {
+	font-size: .86rem;
+}
+
+.erp-tally--money dd {
+	font-size: 1.35rem;
+	white-space: nowrap;
+}
+
+.erp-tally + .erp-table-wrap,
+.erp-tally + .erp-empty {
+	margin-top: 16px;
+}
+
+.erp-work__head + .erp-table-wrap,
+.erp-work__head + .erp-tally,
+.erp-work__head + .erp-empty {
+	margin-top: 14px;
+}
+
+.erp-work__head h2 {
+	margin: 0;
+}
+
+/* Report card as a print page */
+.erp-paper {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 14px;
+	max-width: 760px;
+	margin: 0 auto;
+	padding: 20px 4px 40px;
+}
+
+.erp-paper .erp-table thead th {
+	white-space: normal;
+}
+
+.erp-paper .erp-table th,
+.erp-paper .erp-table td {
+	padding-inline: 8px;
+}
+
+.erp-paper__tools {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.erp-paper__head {
+	padding: 22px 18px;
+	border-radius: var(--erp-radius-md);
+	color: #fff;
+	background: var(--erp-navy);
+	text-align: center;
+}
+
+.erp-paper__head p {
+	margin-top: 6px;
+	color: var(--erp-orange);
+	font-weight: 800;
+	letter-spacing: .14em;
+	text-transform: uppercase;
+}
+
+.erp-paper > h2,
+.erp-paper__session {
+	text-align: center;
+}
+
+.erp-paper__session {
+	color: var(--erp-muted);
+}
+
+.erp-paper__facts {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px 20px;
+	padding: 16px 18px;
+	border-radius: var(--erp-radius-sm);
+	background: #edf0fb;
+}
+
+.erp-paper__facts dt {
+	color: var(--erp-muted);
+	font-size: .74rem;
+	font-weight: 800;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+}
+
+.erp-paper__facts dd {
+	font-weight: 800;
+	overflow-wrap: anywhere;
+}
+
+.erp-paper__sign {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 24px;
+	margin-top: 64px;
+}
+
+.erp-paper__sign span {
+	padding-top: 8px;
+	border-top: 1px solid var(--erp-muted);
+	color: var(--erp-muted);
+	text-align: center;
+	font-size: .84rem;
+}
+
+.erp-paper__made {
+	text-align: center;
+}
+
+@media (min-width: 720px) {
+	.erp-menu {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+		gap: 16px;
+	}
+
+	.erp-nav__count {
+		position: static;
+	}
+
+	.erp-seg--tabs {
+		max-width: 640px;
+	}
+
+	.erp-form__grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		align-items: start;
+	}
+
+	.erp-form--row {
+		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+	}
+
+	.erp-form__grid--three {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.erp-tally--money {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.erp-tally--money .erp-tally__item {
+		display: block;
+		padding: 12px 10px;
+		text-align: center;
+	}
+
+	.erp-tally--money dd {
+		font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+	}
+
+	.erp-filter--one {
+		grid-template-columns: minmax(0, 1fr) auto;
+		max-width: 520px;
+	}
+
+	.erp-filter--report {
+		grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+	}
+
+	.erp-tt__row {
+		grid-template-columns: 170px minmax(0, 1fr);
+	}
+
+	.erp-tt__pick {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.erp-tt,
+	.erp-thread {
+		max-width: 760px;
+	}
+
+	.erp-msg {
+		width: min(86%, 640px);
+	}
+}
+
+@media (forced-colors: active) {
+	.erp-seg--tabs .erp-seg__item[aria-current="true"] span,
+	.erp-tt__row.is-now {
+		outline: 3px solid Highlight;
+	}
+}
+
+@media print {
+	.erp {
+		padding: 0;
+		background: #fff;
+	}
+
+	.erp-removed,
+	.erp-filter,
+	.erp-seg--tabs,
+	.erp-paper__tools,
+	.erp-flash__actions,
+	.erp-work__head .erp-btn {
+		display: none !important;
+	}
+
+	.erp-card,
+	.erp-flash,
+	.erp-table-wrap {
+		box-shadow: none;
+	}
+
+	.erp-table-wrap {
+		overflow: visible;
+		background: none;
+	}
+
+	.erp-paper__head {
+		border: 2px solid var(--erp-navy);
+		color: var(--erp-navy);
+		background: none;
+	}
+
+	/* Printing the login list of imported students: only the message with the list. */
+	.erp-print-flash .erp-main > :not(.erp-flash),
+	.erp-print-flash .erp-top {
+		display: none !important;
+	}
+}
+
+/* School calendar: holidays and events */
+.erp-cal__day--H {
+	color: var(--erp-navy);
+	background: linear-gradient(145deg, #7ad3f9, var(--erp-blue));
+	box-shadow: 3px 3px 7px rgba(40, 40, 80, .16), inset 0 2px 3px rgba(255, 255, 255, .55), inset 0 -3px 5px rgba(40, 40, 80, .14);
+}
+
+.erp-cal__day {
+	position: relative;
+}
+
+.erp-cal__event,
+.erp-dot--E {
+	border-radius: 50%;
+	background: var(--erp-orange);
+	box-shadow: 0 0 0 2px var(--erp-clay);
+}
+
+.erp-cal__event {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	width: 9px;
+	height: 9px;
+}
+
+.erp-dot--H {
+	background: var(--erp-blue);
+}
+
+.erp-dot--E {
+	width: 14px;
+	height: 14px;
+}
+
+.erp-seg--kinds {
+	max-width: 360px;
+}
+
+.erp-seg__item--holiday input:checked + span {
+	background: linear-gradient(145deg, #5cc8f7, var(--erp-blue));
+}
+
+.erp-seg__item--event input:checked + span {
+	background: linear-gradient(145deg, #ffa23d, var(--erp-orange));
+}
+
+.erp-month__note a {
+	font-size: .9rem;
+}
+
+.erp-legend__pair {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	white-space: nowrap;
+}
+
+.erp-holiday h2 {
+	color: var(--erp-ink);
+}
+
+.erp-holiday > * + * {
+	margin-top: 10px;
+}
+
+@media (forced-colors: active) {
+	.erp-cal__day--H {
+		outline: 2px solid Highlight;
+	}
+
+	.erp-cal__event {
+		forced-color-adjust: none;
+		background: Highlight;
+	}
+}
+
+/* Profiles, certificates, fee discounts, admission form */
+.erp-photo {
+	flex: 0 0 auto;
+	display: grid;
+	place-items: center;
+	width: 96px;
+	height: 120px;
+	border-radius: 18px;
+	color: var(--erp-muted);
+	background: #edf0fb;
+	box-shadow: var(--erp-raised-sm);
+	font-size: .8rem;
+	font-weight: 800;
+	object-fit: cover;
+}
+
+.erp-photo--none {
+	box-shadow: var(--erp-pressed);
+}
+
+.erp-head--photo {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.erp-head--photo > div {
+	min-width: 0;
+}
+
+.erp-upload + .erp-upload {
+	margin-top: 10px;
+}
+
+.erp-list--after {
+	margin-top: 12px;
+}
+
+.erp-row__extra {
+	grid-column: 1 / -1;
+	display: grid;
+	gap: 10px;
+	padding-top: 10px;
+	border-top: 1px solid rgba(40, 40, 80, .1);
+}
+
+.erp-subrow {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px 12px;
+	font-size: .92rem;
+}
+
+.erp-subrow > span {
+	flex: 1 1 220px;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.erp-subrow small {
+	color: var(--erp-muted);
+	font-weight: 600;
+}
+
+.erp-subrow.is-off strong {
+	color: var(--erp-muted);
+	text-decoration: line-through;
+	text-decoration-thickness: 1px;
+}
+
+.erp-filter--below {
+	margin-top: 14px;
+}
+
+.erp-field__error {
+	color: var(--erp-red-text) !important;
+	font-weight: 800;
+}
+
+.erp-field [aria-invalid="true"] {
+	border-color: var(--erp-red);
+}
+
+.erp-flash__small {
+	margin-top: 6px;
+	font-size: .88rem;
+	font-weight: 600;
+}
+
+.erp-admission {
+	max-width: 640px;
+}
+
+.erp-admission__form h2 {
+	margin-top: 8px;
+	padding-top: 14px;
+	border-top: 1px solid rgba(40, 40, 80, .1);
+}
+
+.erp-admission__form h2:first-of-type {
+	padding-top: 0;
+	border-top: 0;
+}
+
+.erp-admission__optional {
+	color: var(--erp-muted);
+	font-size: .9rem;
+	font-weight: 600;
+}
+
+.erp-admission__done {
+	display: grid;
+	gap: 12px;
+	text-align: center;
+}
+
+.erp-admission__number {
+	justify-self: center;
+	padding: 10px 22px;
+	border-radius: 18px;
+	color: var(--erp-green-text);
+	background: var(--erp-green-soft);
+	box-shadow: var(--erp-pressed);
+	font-size: 1.7rem;
+	font-weight: 900;
+	letter-spacing: .04em;
+}
+
+.erp-paper__doc {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 14px;
+}
+
+.erp-paper__doc + .erp-paper__doc {
+	margin-top: 28px;
+	padding-top: 28px;
+	border-top: 2px dashed var(--erp-muted);
+}
+
+.erp-paper__head .erp-paper__where {
+	margin-top: 4px;
+	color: #dfe2f5;
+	font-size: .8rem;
+	font-weight: 600;
+	letter-spacing: 0;
+	text-transform: none;
+}
+
+.erp-paper__text {
+	font-size: 1.05rem;
+	line-height: 1.9;
+}
+
+.erp-photo--paper {
+	justify-self: center;
+}
+
+@media print {
+	.erp-paper__doc + .erp-paper__doc {
+		break-before: page;
+		border-top: 0;
+	}
+
+	.erp-paper__head .erp-paper__where {
+		color: var(--erp-navy);
+	}
+}
+
+@media (min-width: 720px) {
+	.erp-filter .erp-field--wide {
+		grid-column: 1 / 3;
+	}
+
+	.erp-admission {
+		padding-top: 2vh;
+	}
+}

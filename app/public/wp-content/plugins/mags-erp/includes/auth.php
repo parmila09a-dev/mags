@@ -55,7 +55,7 @@ function mags_erp_handle_login() {
 	$user_login = $login;
 	if ( 'student' === $as ) {
 		$student    = mags_erp_get_student_by_admission( $login );
-		$account    = $student ? get_userdata( (int) $student->user_id ) : false;
+		$account    = $student && ! $student->hidden_at ? get_userdata( (int) $student->user_id ) : false;
 		$user_login = $account ? $account->user_login : '';
 	}
 
@@ -79,6 +79,17 @@ function mags_erp_login_error_message( $code ) {
 	);
 	return $messages[ $code ] ?? '';
 }
+
+/**
+ * A teacher or student that the office has removed cannot sign in anywhere,
+ * neither on the portal nor on wp-login.php. The portal form answers with its
+ * usual "not correct" message, so it does not reveal that the ID exists.
+ */
+function mags_erp_block_removed_login( $user ) {
+	if ( $user instanceof WP_User && mags_erp_is_removed_user( $user ) ) { return new WP_Error( 'mags_erp_removed', 'This account is no longer in use. Please contact the school office.' ); }
+	return $user;
+}
+add_filter( 'authenticate', 'mags_erp_block_removed_login', 99 );
 
 /** Portal accounts have no business in the Dashboard: send them to the portal instead. */
 function mags_erp_keep_out_of_dashboard() {
@@ -108,3 +119,19 @@ function mags_erp_disable_app_passwords( $available, $user ) {
 	return $user instanceof WP_User && mags_erp_is_portal_only_user( $user ) ? false : $available;
 }
 add_filter( 'wp_is_application_passwords_available_for_user', 'mags_erp_disable_app_passwords', 10, 2 );
+
+/**
+ * Portal accounts are not website authors. Without this, /?author=… would show
+ * a student's or teacher's name (and internal username) to any visitor.
+ */
+function mags_erp_hide_author_pages() {
+	if ( ! is_author() ) { return; }
+	$author = get_queried_object();
+	if ( $author instanceof WP_User && mags_erp_is_portal_only_user( $author ) ) {
+		global $wp_query;
+		$wp_query->set_404();
+		status_header( 404 );
+		nocache_headers();
+	}
+}
+add_action( 'template_redirect', 'mags_erp_hide_author_pages', 1 );

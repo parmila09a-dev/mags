@@ -1,5 +1,5 @@
 <?php
-/** Teacher: give homework to own classes, see who has answered, give marks or a comment. */
+/** Teacher: give homework to own classes, change it and add files, see who has answered, give marks or a comment. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 $erp_teacher_id = $ctx['user']->ID;
@@ -14,28 +14,70 @@ $erp_today = mags_erp_today();
 if ( $erp_homework ) :
 	$erp_class       = $erp_class_map[ (int) $erp_homework->class_id ];
 	$erp_students    = mags_erp_class_students( (int) $erp_class->id );
-	$erp_submissions = mags_erp_homework_submissions( (int) $erp_homework->id );
+	$erp_submissions = array_intersect_key( mags_erp_homework_submissions( (int) $erp_homework->id ), array_flip( array_map( 'intval', wp_list_pluck( $erp_students, 'id' ) ) ) );
+	$erp_files       = mags_erp_homework_files( (int) $erp_homework->id );
+	$erp_room        = MAGS_ERP_HOMEWORK_FILES - count( $erp_files );
 	$erp_checked     = 0;
 	foreach ( $erp_submissions as $erp_sub ) { if ( $erp_sub->checked_at ) { $erp_checked++; } }
 	?>
 	<header class="erp-head">
 		<p class="erp-eyebrow"><a href="<?php echo esc_url( mags_erp_url( 'homework' ) ); ?>">← All homework</a></p>
 		<h1><?php echo esc_html( $erp_homework->title ); ?></h1>
-		<p class="erp-head__meta"><span class="erp-chip erp-chip--blue"><?php echo esc_html( mags_erp_class_label( $erp_class ) ); ?></span><span class="erp-chip">Given <?php echo esc_html( mags_erp_format_datetime( $erp_homework->created_at, 'j M Y' ) ); ?></span><?php if ( $erp_homework->due_date ) : ?><span class="erp-chip <?php echo $erp_homework->due_date < $erp_today ? 'erp-chip--status-A' : 'erp-chip--orange'; ?>">Due <?php echo esc_html( mags_erp_format_date( $erp_homework->due_date, 'j M Y' ) ); ?></span><?php endif; ?><?php if ( null !== $erp_homework->max_marks ) : ?><span class="erp-chip">Out of <?php echo esc_html( mags_erp_format_marks( $erp_homework->max_marks ) ); ?></span><?php endif; ?></p>
+		<p class="erp-head__meta"><span class="erp-chip erp-chip--blue"><?php echo esc_html( mags_erp_class_label( $erp_class ) ); ?></span><span class="erp-chip">Given <?php echo esc_html( mags_erp_format_datetime( $erp_homework->created_at, 'j M Y' ) ); ?> by <?php echo esc_html( mags_erp_teacher_name( $erp_homework->teacher_id ) ); ?></span><?php if ( $erp_homework->due_date ) : ?><span class="erp-chip <?php echo $erp_homework->due_date < $erp_today ? 'erp-chip--status-A' : 'erp-chip--orange'; ?>">Due <?php echo esc_html( mags_erp_format_date( $erp_homework->due_date, 'j M Y' ) ); ?></span><?php endif; ?><?php if ( null !== $erp_homework->max_marks ) : ?><span class="erp-chip">Out of <?php echo esc_html( mags_erp_format_marks( $erp_homework->max_marks ) ); ?></span><?php endif; ?><?php if ( $erp_homework->updated_at ) : ?><span class="erp-chip">Changed <?php echo esc_html( mags_erp_format_datetime( $erp_homework->updated_at, 'j M Y' ) ); ?></span><?php endif; ?></p>
 	</header>
 
 	<section class="erp-card erp-work">
 		<?php if ( '' !== trim( $erp_homework->instructions ) ) : ?><p class="erp-work__text"><?php echo nl2br( esc_html( $erp_homework->instructions ) ); ?></p><?php endif; ?>
-		<?php mags_erp_file_link( (int) $erp_homework->file_id ); ?>
+		<?php if ( $erp_files ) : ?>
+			<div class="erp-files"><?php foreach ( $erp_files as $erp_file ) { mags_erp_file_link( $erp_file ); } ?></div>
+		<?php endif; ?>
 		<div class="erp-work__foot">
 			<span class="erp-chip erp-chip--green"><?php echo esc_html( count( $erp_submissions ) ); ?> of <?php echo esc_html( count( $erp_students ) ); ?> answered</span>
 			<span class="erp-chip"><?php echo esc_html( $erp_checked ); ?> checked</span>
-			<form method="post" action="<?php echo esc_url( mags_erp_url( 'homework' ) ); ?>" data-erp-confirm="Remove this homework and every answer sent for it? This cannot be undone.">
+			<form method="post" action="<?php echo esc_url( mags_erp_url( 'homework' ) ); ?>" data-erp-confirm="Remove this homework? Students will no longer see it. The answers and marks are kept and you can restore it.">
 				<?php mags_erp_form_fields( 'delete_homework' ); ?>
 				<input type="hidden" name="homework_id" value="<?php echo esc_attr( $erp_homework->id ); ?>">
 				<button class="erp-btn erp-btn--danger erp-btn--sm" type="submit">Remove homework</button>
 			</form>
 		</div>
+
+		<details class="erp-upload"<?php echo isset( $_GET['change'] ) ? ' open' : ''; // phpcs:ignore WordPress.Security.NonceVerification ?>>
+			<summary class="erp-btn erp-btn--ghost erp-btn--sm">Change homework or add files</summary>
+			<form class="erp-form erp-upload__form" method="post" action="<?php echo esc_url( mags_erp_url( 'homework', array( 'id' => (int) $erp_homework->id ) ) ); ?>" enctype="multipart/form-data">
+				<?php mags_erp_form_fields( 'update_homework' ); ?>
+				<input type="hidden" name="homework_id" value="<?php echo esc_attr( $erp_homework->id ); ?>">
+				<div class="erp-form__grid">
+					<p class="erp-field"><label for="erp_hw_title">Title</label><input id="erp_hw_title" name="title" type="text" maxlength="160" value="<?php echo esc_attr( $erp_homework->title ); ?>" required></p>
+					<p class="erp-field"><label for="erp_hw_class">Class</label><input id="erp_hw_class" type="text" value="<?php echo esc_attr( mags_erp_class_label( $erp_class ) ); ?>" readonly><small>The class cannot be changed, because the answers belong to its students.</small></p>
+					<p class="erp-field"><label for="erp_hw_due">Due date <span>(optional)</span></label><input id="erp_hw_due" name="due_date" type="date" value="<?php echo esc_attr( (string) $erp_homework->due_date ); ?>"></p>
+					<p class="erp-field"><label for="erp_hw_max">Maximum marks <span>(optional)</span></label><input id="erp_hw_max" name="max_marks" type="text" inputmode="decimal" maxlength="7" value="<?php echo esc_attr( mags_erp_format_marks( $erp_homework->max_marks ) ); ?>"></p>
+				</div>
+				<p class="erp-field"><label for="erp_hw_text">Instructions <span>(optional)</span></label><textarea id="erp_hw_text" name="instructions" rows="3" maxlength="5000"><?php echo esc_textarea( $erp_homework->instructions ); ?></textarea></p>
+				<?php if ( $erp_room > 0 ) : ?>
+					<?php mags_erp_file_input( 'homework_files', 'Add more files', false, sprintf( 'You can add %d more.', $erp_room ), true ); ?>
+				<?php else : ?>
+					<p class="erp-hint">This homework has <?php echo esc_html( MAGS_ERP_HOMEWORK_FILES ); ?> files, the most it can carry. Take one off below to add another.</p>
+				<?php endif; ?>
+				<div class="erp-form__actions"><button class="erp-btn erp-btn--orange" type="submit">Save changes</button></div>
+			</form>
+			<?php if ( $erp_files ) : ?>
+				<h3 class="erp-subtitle">Files of this homework</h3>
+				<ul class="erp-list erp-list--tight">
+					<?php foreach ( $erp_files as $erp_file ) : ?>
+						<li class="erp-row">
+							<div class="erp-row__main"><strong><?php echo esc_html( $erp_file->original_name ); ?></strong><span><?php echo esc_html( size_format( (int) $erp_file->size, 1 ) ); ?> · added <?php echo esc_html( mags_erp_format_datetime( $erp_file->created_at, 'j M Y' ) ); ?></span></div>
+							<div class="erp-row__actions">
+								<form method="post" action="<?php echo esc_url( mags_erp_url( 'homework', array( 'id' => (int) $erp_homework->id ) ) ); ?>" data-erp-confirm="<?php echo esc_attr( 'Take “' . $erp_file->original_name . '” off this homework? Students will no longer be able to open it.' ); ?>">
+									<?php mags_erp_form_fields( 'remove_homework_file' ); ?>
+									<input type="hidden" name="link_id" value="<?php echo esc_attr( $erp_file->link_id ); ?>">
+									<button class="erp-btn erp-btn--danger erp-btn--sm" type="submit">Take off</button>
+								</form>
+							</div>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
+		</details>
 	</section>
 
 	<section aria-labelledby="erp-answers-title">
@@ -84,6 +126,8 @@ if ( $erp_homework ) :
 endif;
 
 $erp_list = mags_erp_classes_homework( array_keys( $erp_class_map ) );
+$erp_gone = array();
+foreach ( mags_erp_classes_homework( array_keys( $erp_class_map ), 100, true ) as $erp_item ) { $erp_gone[] = array( (int) $erp_item->id, $erp_item->title, mags_erp_class_label( $erp_class_map[ (int) $erp_item->class_id ] ) . ' · removed ' . mags_erp_format_datetime( $erp_item->hidden_at, 'j M Y' ) . ' · ' . sprintf( _n( '%d answer kept', '%d answers kept', (int) $erp_item->submitted_count, 'mags-erp' ), (int) $erp_item->submitted_count ) ); }
 ?>
 <header class="erp-head">
 	<p class="erp-eyebrow">Teacher</p>
@@ -104,7 +148,7 @@ $erp_list = mags_erp_classes_homework( array_keys( $erp_class_map ) );
 				<p class="erp-field"><label for="erp_hw_max">Maximum marks <span>(optional)</span></label><input id="erp_hw_max" name="max_marks" type="text" inputmode="decimal" maxlength="7" placeholder="10"></p>
 			</div>
 			<p class="erp-field"><label for="erp_hw_text">Instructions <span>(optional)</span></label><textarea id="erp_hw_text" name="instructions" rows="3" maxlength="5000" placeholder="What the students have to do…"></textarea></p>
-			<?php mags_erp_file_input( 'homework_file', 'Attach a file', false, 'Worksheet or question paper.' ); ?>
+			<?php mags_erp_file_input( 'homework_files', 'Attach files', false, 'Worksheet or question paper. You can choose several files and add more later.', true ); ?>
 			<div class="erp-form__actions"><button class="erp-btn erp-btn--orange" type="submit">Give homework</button></div>
 		</form>
 	</section>
@@ -119,16 +163,20 @@ $erp_list = mags_erp_classes_homework( array_keys( $erp_class_map ) );
 					<li class="erp-row">
 						<div class="erp-row__main">
 							<strong><?php echo esc_html( $erp_item->title ); ?></strong>
-							<span><?php echo esc_html( mags_erp_class_label( $erp_item_class ) ); ?> · given <?php echo esc_html( mags_erp_format_datetime( $erp_item->created_at, 'j M Y' ) ); ?><?php if ( $erp_item->due_date ) : ?> · due <?php echo esc_html( mags_erp_format_date( $erp_item->due_date, 'j M Y' ) ); ?><?php endif; ?></span>
+							<span><?php echo esc_html( mags_erp_class_label( $erp_item_class ) ); ?> · given <?php echo esc_html( mags_erp_format_datetime( $erp_item->created_at, 'j M Y' ) ); ?> by <?php echo esc_html( mags_erp_teacher_name( $erp_item->teacher_id ) ); ?><?php if ( $erp_item->due_date ) : ?> · due <?php echo esc_html( mags_erp_format_date( $erp_item->due_date, 'j M Y' ) ); ?><?php endif; ?></span>
 							<span class="erp-row__chips">
 								<span class="erp-chip erp-chip--blue"><?php echo esc_html( $erp_item->submitted_count ); ?> of <?php echo esc_html( $erp_item_class->student_count ); ?> answered</span>
 								<?php if ( $erp_pending > 0 ) : ?><span class="erp-chip erp-chip--orange"><?php echo esc_html( $erp_pending ); ?> to check</span><?php elseif ( (int) $erp_item->submitted_count > 0 ) : ?><span class="erp-chip erp-chip--green">All checked</span><?php endif; ?>
 							</span>
 						</div>
-						<div class="erp-row__actions"><a class="erp-btn <?php echo $erp_pending > 0 ? 'erp-btn--orange' : 'erp-btn--ghost'; ?> erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'homework', array( 'id' => (int) $erp_item->id ) ) ); ?>"><?php echo $erp_pending > 0 ? 'Check answers' : 'Open'; ?></a></div>
+						<div class="erp-row__actions">
+							<a class="erp-btn <?php echo $erp_pending > 0 ? 'erp-btn--orange' : 'erp-btn--ghost'; ?> erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'homework', array( 'id' => (int) $erp_item->id ) ) ); ?>"><?php echo $erp_pending > 0 ? 'Check answers' : 'Open'; ?><span class="erp-sr"> <?php echo esc_html( $erp_item->title ); ?></span></a>
+							<a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'homework', array( 'id' => (int) $erp_item->id, 'change' => 1 ) ) ); ?>">Change<span class="erp-sr"> <?php echo esc_html( $erp_item->title ); ?></span></a>
+						</div>
 					</li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
+		<?php mags_erp_removed_list( $erp_gone, 'delete_homework', 'homework_id', 'homework', 'Removed homework' ); ?>
 	</section>
 <?php endif; ?>

@@ -142,10 +142,112 @@
     update();
   }
 
+  /* One form, two answers (approve / do not approve): ask on the button that was pressed. */
+  function initAsk() {
+    each('button[data-erp-ask]', function (button) {
+      button.addEventListener('click', function (event) {
+        if (!window.confirm(button.getAttribute('data-erp-ask'))) {
+          event.preventDefault();
+        }
+      });
+    });
+  }
+
+  /* Long sheets (exam marks): warn before leaving with changes that are not saved. */
+  function initGuard() {
+    each('form[data-erp-guard]', function (form) {
+      var saved = true;
+      form.addEventListener('change', function () {
+        saved = false;
+      });
+      form.addEventListener('submit', function () {
+        saved = true;
+      });
+      window.addEventListener('beforeunload', function (event) {
+        if (!saved) {
+          event.preventDefault();
+          event.returnValue = '';
+        }
+      });
+    });
+  }
+
+  /* Marks sheet: an absent student has no marks to type. */
+  function initAbsent() {
+    each('.erp-mark__entry', function (entry) {
+      var box = entry.querySelector('input[type="checkbox"]');
+      var marks = entry.querySelector('input[type="text"]');
+      if (!box || !marks || box.disabled) {
+        return;
+      }
+      function sync() {
+        marks.disabled = box.checked;
+      }
+      box.addEventListener('change', sync);
+      sync();
+    });
+  }
+
+  function initPrint() {
+    if (!window.print) {
+      return;
+    }
+    each('[data-erp-print]', function (button) {
+      var inFlash = !!button.closest('.erp-flash');
+      button.hidden = false;
+      button.addEventListener('click', function () {
+        document.body.classList.toggle('erp-print-flash', inFlash);
+        window.print();
+      });
+    });
+    window.addEventListener('afterprint', function () {
+      document.body.classList.remove('erp-print-flash');
+    });
+  }
+
+  /* Login details of students added from a file: save the table as a CSV file to keep. */
+  function initSaveLogins() {
+    var table = document.querySelector('[data-erp-logins] table');
+    if (!table || !window.Blob || !window.URL || !window.URL.createObjectURL) {
+      return;
+    }
+    function cell(text) {
+      text = text.replace(/\s+/g, ' ').trim();
+      if (/^[=+\-@]/.test(text)) {
+        text = "'" + text;
+      }
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+    each('[data-erp-save-logins]', function (button) {
+      button.hidden = false;
+      button.addEventListener('click', function () {
+        var lines = [];
+        each('tr', function (row) {
+          var cells = [];
+          each('th, td', function (item) {
+            cells.push(cell(item.textContent));
+          }, row);
+          lines.push(cells.join(','));
+        }, table);
+        var link = document.createElement('a');
+        link.href = window.URL.createObjectURL(new Blob(['\ufeff' + lines.join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' }));
+        link.download = button.getAttribute('data-erp-save-logins');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    });
+  }
+
   initLogin();
   initPasswordToggles();
   initConfirms();
+  initAsk();
   initCopy();
   initAutoSubmit();
   initSheet();
+  initGuard();
+  initAbsent();
+  initPrint();
+  initSaveLogins();
 }());

@@ -18,6 +18,10 @@ foreach ( $erp_classes as $erp_own_class ) {
 }
 $erp_students = $erp_class ? mags_erp_class_students( (int) $erp_class->id ) : array();
 $erp_marks    = mags_erp_attendance_for_students( wp_list_pluck( $erp_students, 'id' ), $erp_date );
+// Attendance is not marked on a holiday of the school calendar.
+$erp_holiday  = mags_erp_holiday_on( $erp_date );
+// A student with approved leave starts as "Leave" on a day that is not saved yet; the teacher can still change it.
+$erp_on_leave = mags_erp_approved_leave_on( wp_list_pluck( $erp_students, 'id' ), $erp_date );
 ?>
 <header class="erp-head">
 	<p class="erp-eyebrow">Attendance</p>
@@ -36,6 +40,13 @@ $erp_marks    = mags_erp_attendance_for_students( wp_list_pluck( $erp_students, 
 
 	<?php if ( ! $erp_class ) : ?>
 		<p class="erp-card erp-empty">Choose a class to mark its attendance.</p>
+	<?php elseif ( $erp_holiday ) : ?>
+		<section class="erp-card erp-empty erp-holiday">
+			<h2><?php echo esc_html( mags_erp_format_date( $erp_date, 'l, j F Y' ) ); ?></h2>
+			<p><span class="erp-chip erp-chip--blue">Holiday: <?php echo esc_html( $erp_holiday->title ); ?></span></p>
+			<p>Attendance is not marked on a holiday, and the day is not counted in the percentage. Choose another date above.</p>
+			<p><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'calendar', array( 'month' => substr( $erp_date, 0, 7 ) ) ) ); ?>">School calendar</a></p>
+		</section>
 	<?php elseif ( ! $erp_students ) : ?>
 		<p class="erp-card erp-empty">This class has no students yet. The school office adds students.</p>
 	<?php else : ?>
@@ -49,7 +60,7 @@ $erp_marks    = mags_erp_attendance_for_students( wp_list_pluck( $erp_students, 
 					<h2><?php echo esc_html( mags_erp_format_date( $erp_date, 'l, j F Y' ) ); ?></h2>
 					<p>
 						<?php if ( $erp_marks ) : ?><span class="erp-chip erp-chip--green">Already saved · you can correct it</span>
-						<?php else : ?><span class="erp-chip erp-chip--orange">Not saved yet</span> Everyone starts as Present. Change the absent students, then save.<?php endif; ?>
+						<?php else : ?><span class="erp-chip erp-chip--orange">Not saved yet</span> Everyone starts as Present<?php echo $erp_on_leave ? ', and students with approved leave as Leave' : ''; ?>. Change the absent students, then save.<?php endif; ?>
 					</p>
 				</div>
 				<button class="erp-btn erp-btn--ghost erp-btn--sm" type="button" data-erp-all-present hidden>All present</button>
@@ -57,9 +68,9 @@ $erp_marks    = mags_erp_attendance_for_students( wp_list_pluck( $erp_students, 
 			<p class="erp-legend" aria-hidden="true"><span class="erp-dot erp-dot--P">P</span> Present <span class="erp-dot erp-dot--A">A</span> Absent <span class="erp-dot erp-dot--L">L</span> Leave</p>
 
 			<ol class="erp-marks">
-				<?php foreach ( $erp_students as $erp_student ) : $erp_current = $erp_marks[ (int) $erp_student->id ] ?? 'P'; ?>
+				<?php foreach ( $erp_students as $erp_student ) : $erp_current = $erp_marks[ (int) $erp_student->id ] ?? ( isset( $erp_on_leave[ (int) $erp_student->id ] ) ? 'L' : 'P' ); ?>
 					<li class="erp-mark">
-						<div class="erp-mark__who"><?php if ( '' !== $erp_student->roll_no ) : ?><span class="erp-roll"><?php echo esc_html( $erp_student->roll_no ); ?></span><?php endif; ?><strong><?php echo esc_html( $erp_student->full_name ); ?></strong></div>
+						<div class="erp-mark__who"><?php if ( '' !== $erp_student->roll_no ) : ?><span class="erp-roll"><?php echo esc_html( $erp_student->roll_no ); ?></span><?php endif; ?><strong><?php echo esc_html( $erp_student->full_name ); ?><?php if ( isset( $erp_on_leave[ (int) $erp_student->id ] ) ) : ?> <span class="erp-chip erp-chip--orange">Leave approved</span><?php endif; ?></strong></div>
 						<fieldset class="erp-seg erp-seg--status">
 							<legend class="erp-sr">Attendance for <?php echo esc_html( $erp_student->full_name ); ?></legend>
 							<?php foreach ( $erp_statuses as $erp_code => $erp_label ) : ?>

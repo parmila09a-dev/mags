@@ -37,6 +37,9 @@ $erp_month_pct   = mags_erp_percentage( $erp_month_tally );
 $erp_week_start = (int) get_option( 'start_of_week', 1 );
 $erp_blank_days = ( (int) gmdate( 'w', strtotime( $erp_month_start ) ) - $erp_week_start + 7 ) % 7;
 $erp_today_mark = $erp_days[ $erp_today ] ?? '';
+// Holidays of the shown month: date => name. Attendance is not marked or counted on them.
+$erp_holidays   = mags_erp_holiday_dates( $erp_month_start, $erp_month_end );
+$erp_holiday    = mags_erp_holiday_on( $erp_today );
 ?>
 <header class="erp-head">
 	<p class="erp-eyebrow">My attendance</p>
@@ -55,6 +58,7 @@ $erp_today_mark = $erp_days[ $erp_today ] ?? '';
 		<?php else : ?>
 			<p>No attendance has been marked yet in this session.</p>
 		<?php endif; ?>
+		<?php if ( $erp_holiday ) : ?><p><span class="erp-chip erp-chip--blue">Today is a holiday: <?php echo esc_html( $erp_holiday->title ); ?></span></p><?php endif; ?>
 		<?php if ( $erp_today_mark ) : ?><p><span class="erp-chip erp-chip--status-<?php echo esc_attr( $erp_today_mark ); ?>">Today: <?php echo esc_html( $erp_statuses[ $erp_today_mark ] ); ?></span></p><?php endif; ?>
 	</div>
 	<dl class="erp-tally">
@@ -62,7 +66,7 @@ $erp_today_mark = $erp_days[ $erp_today ] ?? '';
 		<div class="erp-tally__item erp-tally__item--A"><dt>Absent</dt><dd><?php echo esc_html( $erp_counts['A'] ); ?></dd></div>
 		<div class="erp-tally__item erp-tally__item--L"><dt>Leave</dt><dd><?php echo esc_html( $erp_counts['L'] ); ?></dd></div>
 	</dl>
-	<p class="erp-hint">Percentage = days present ÷ days marked. Leave is counted as not present.</p>
+	<p class="erp-hint">Percentage = days present ÷ days marked. Leave is counted as not present. Holidays are not counted.</p>
 </section>
 
 <section class="erp-card" aria-labelledby="erp-month-title">
@@ -85,14 +89,15 @@ $erp_today_mark = $erp_days[ $erp_today ] ?? '';
 		<?php for ( $erp_day = 1; $erp_day <= $erp_month_days; $erp_day++ ) : ?>
 			<?php
 			$erp_date = $erp_month . '-' . sprintf( '%02d', $erp_day );
-			$erp_mark = $erp_days[ $erp_date ] ?? '';
+			$erp_mark = isset( $erp_holidays[ $erp_date ] ) ? 'H' : ( $erp_days[ $erp_date ] ?? '' );
 			?>
 			<li class="erp-cal__day<?php echo $erp_mark ? ' erp-cal__day--' . esc_attr( $erp_mark ) : ''; ?><?php echo $erp_date === $erp_today ? ' is-today' : ''; ?>">
 				<span aria-hidden="true"><?php echo esc_html( $erp_day ); ?></span>
 				<?php if ( $erp_mark ) : ?><b aria-hidden="true"><?php echo esc_html( $erp_mark ); ?></b><?php endif; ?>
-				<span class="erp-sr"><?php echo esc_html( mags_erp_format_date( $erp_date, 'j F' ) . ': ' . ( $erp_mark ? $erp_statuses[ $erp_mark ] : 'not marked' ) ); ?></span>
+				<span class="erp-sr"><?php echo esc_html( mags_erp_format_date( $erp_date, 'j F' ) . ': ' . ( 'H' === $erp_mark ? 'Holiday: ' . $erp_holidays[ $erp_date ] : ( $erp_mark ? $erp_statuses[ $erp_mark ] : 'not marked' ) ) ); ?></span>
 			</li>
 		<?php endfor; ?>
 	</ol>
-	<p class="erp-legend" aria-hidden="true"><span class="erp-dot erp-dot--P">P</span> Present <span class="erp-dot erp-dot--A">A</span> Absent <span class="erp-dot erp-dot--L">L</span> Leave</p>
+	<p class="erp-legend" aria-hidden="true"><span class="erp-dot erp-dot--P">P</span> Present <span class="erp-dot erp-dot--A">A</span> Absent <span class="erp-dot erp-dot--L">L</span> Leave <span class="erp-legend__pair"><span class="erp-dot erp-dot--H">H</span> Holiday</span></p>
+	<p class="erp-card__actions"><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'calendar', array( 'month' => $erp_month ) ) ); ?>">School calendar</a></p>
 </section>

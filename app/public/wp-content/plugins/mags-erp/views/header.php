@@ -38,9 +38,15 @@ $erp_labels = mags_erp_role_labels();
 </header>
 
 <?php if ( $ctx['screens'] ) : ?>
+	<?php
+	// The bar shows the main screens and "More"; "More" is lit while a screen from its list is open.
+	$erp_in_bar   = ! empty( $ctx['screens'][ $ctx['route'] ][4] );
+	$erp_waiting  = array_sum( array_diff_key( $ctx['badges'], array_filter( $ctx['screens'], static function ( $erp_screen ) { return ! empty( $erp_screen[4] ); } ) ) );
+	?>
 	<nav class="erp-nav" aria-label="Portal sections">
-		<?php foreach ( $ctx['screens'] as $erp_nav_route => $erp_nav_screen ) : ?>
-			<a href="<?php echo esc_url( mags_erp_url( $erp_nav_route ) ); ?>"<?php echo $erp_nav_route === $ctx['route'] ? ' aria-current="page"' : ''; ?>><?php echo mags_erp_icon( $erp_nav_screen[3] ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo esc_html( $erp_nav_screen[2] ); ?></span></a>
+		<?php foreach ( $ctx['screens'] as $erp_nav_route => $erp_nav_screen ) : if ( empty( $erp_nav_screen[4] ) ) { continue; } ?>
+			<?php $erp_nav_count = 'more' === $erp_nav_route ? $erp_waiting : ( $ctx['badges'][ $erp_nav_route ] ?? 0 ); ?>
+			<a href="<?php echo esc_url( mags_erp_url( $erp_nav_route ) ); ?>"<?php echo $erp_nav_route === $ctx['route'] || ( 'more' === $erp_nav_route && ! $erp_in_bar ) ? ' aria-current="page"' : ''; ?>><?php echo mags_erp_icon( $erp_nav_screen[3] ); // phpcs:ignore WordPress.Security.EscapeOutput ?><span><?php echo esc_html( $erp_nav_screen[2] ); ?></span><?php if ( $erp_nav_count ) : ?><b class="erp-nav__count"><?php echo esc_html( $erp_nav_count ); ?><span class="erp-sr"> waiting</span></b><?php endif; ?></a>
 		<?php endforeach; ?>
 	</nav>
 <?php endif; ?>
@@ -49,6 +55,34 @@ $erp_labels = mags_erp_role_labels();
 	<?php if ( $ctx['flash'] ) : ?>
 		<div class="erp-flash erp-flash--<?php echo 'error' === $ctx['flash']['type'] ? 'error' : 'success'; ?>" role="<?php echo 'error' === $ctx['flash']['type'] ? 'alert' : 'status'; ?>">
 			<p><?php echo esc_html( $ctx['flash']['message'] ); ?></p>
+			<?php if ( ! empty( $ctx['flash']['details']['lines'] ) ) : ?>
+				<ul class="erp-flash__lines">
+					<?php foreach ( (array) $ctx['flash']['details']['lines'] as $erp_line ) : ?><li><?php echo esc_html( $erp_line ); ?></li><?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
+			<?php if ( ! empty( $ctx['flash']['details']['logins'] ) ) : $erp_logins = (array) $ctx['flash']['details']['logins']; ?>
+				<?php
+				// Login details of students added from a file: shown once, with a file to download and keep.
+				$erp_login_text = '';
+				foreach ( $erp_logins as $erp_login ) { $erp_login_text .= sprintf( "%s (%s)\nLogin ID: %s\nPassword: %s\n\n", $erp_login[0], $erp_login[1], $erp_login[2], $erp_login[3] ); }
+				?>
+				<div class="erp-table-wrap erp-credentials erp-credentials--list" data-erp-logins>
+					<table class="erp-table">
+						<caption class="erp-sr">Login details of the new students</caption>
+						<thead><tr><th scope="col">Name</th><th scope="col">Class</th><th scope="col">Login ID</th><th scope="col">Password</th></tr></thead>
+						<tbody>
+							<?php foreach ( $erp_logins as $erp_login ) : ?>
+								<tr><td><?php echo esc_html( $erp_login[0] ); ?></td><td><?php echo esc_html( $erp_login[1] ); ?></td><td><code><?php echo esc_html( $erp_login[2] ); ?></code></td><td><code><?php echo esc_html( $erp_login[3] ); ?></code></td></tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+				</div>
+				<p class="erp-flash__actions">
+					<button class="erp-btn erp-btn--navy erp-btn--sm" type="button" data-erp-save-logins="<?php echo esc_attr( 'student-logins-' . mags_erp_today() . '.csv' ); ?>" hidden>Download login list</button>
+					<button class="erp-btn erp-btn--ghost erp-btn--sm" type="button" data-erp-copy="<?php echo esc_attr( 'Portal: ' . mags_erp_url( 'login' ) . "\nSign in as: Student / Parent\n\n" . $erp_login_text ); ?>" hidden>Copy all</button>
+					<button class="erp-btn erp-btn--ghost erp-btn--sm" type="button" data-erp-print hidden>Print</button>
+				</p>
+			<?php endif; ?>
 			<?php if ( ! empty( $ctx['flash']['details']['password'] ) ) : $erp_details = $ctx['flash']['details']; ?>
 				<dl class="erp-credentials">
 					<div><dt>Name</dt><dd><?php echo esc_html( $erp_details['name'] ); ?></dd></div>

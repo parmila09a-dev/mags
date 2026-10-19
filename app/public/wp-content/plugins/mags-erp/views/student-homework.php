@@ -11,6 +11,7 @@ endif;
 
 $erp_today  = mags_erp_today();
 $erp_rows   = mags_erp_student_homework( $erp_student );
+$erp_files  = mags_erp_homework_files_map( wp_list_pluck( $erp_rows, 'id' ) );
 $erp_groups = array( 'todo' => array(), 'done' => array() );
 foreach ( $erp_rows as $erp_row ) { $erp_groups[ in_array( mags_erp_homework_status( $erp_row ), array( 'pending', 'late' ), true ) ? 'todo' : 'done' ][] = $erp_row; }
 $erp_labels = array( 'pending' => array( 'To do', 'erp-chip--orange' ), 'late' => array( 'Overdue', 'erp-chip--status-A' ), 'submitted' => array( 'Sent · waiting for checking', 'erp-chip--blue' ), 'checked' => array( 'Checked', 'erp-chip--green' ) );
@@ -33,12 +34,12 @@ $erp_labels = array( 'pending' => array( 'To do', 'erp-chip--orange' ), 'late' =
 					<div class="erp-work__head">
 						<div>
 							<h3><?php echo esc_html( $erp_row->title ); ?></h3>
-							<p><?php echo esc_html( mags_erp_teacher_name( $erp_row->teacher_id ) ); ?> · given <?php echo esc_html( mags_erp_format_datetime( $erp_row->created_at, 'j M Y' ) ); ?><?php if ( $erp_row->due_date ) : ?> · <b>due <?php echo esc_html( mags_erp_format_date( $erp_row->due_date, 'j M Y' ) ); ?></b><?php endif; ?></p>
+							<p><?php echo esc_html( mags_erp_teacher_name( $erp_row->teacher_id ) ); ?> · given <?php echo esc_html( mags_erp_format_datetime( $erp_row->created_at, 'j M Y' ) ); ?><?php if ( $erp_row->due_date ) : ?> · <b>due <?php echo esc_html( mags_erp_format_date( $erp_row->due_date, 'j M Y' ) ); ?></b><?php endif; ?><?php if ( $erp_row->updated_at ) : ?> · changed <?php echo esc_html( mags_erp_format_datetime( $erp_row->updated_at, 'j M Y' ) ); ?><?php endif; ?></p>
 						</div>
 						<span class="erp-chip <?php echo esc_attr( $erp_labels[ $erp_status ][1] ); ?>"><?php echo esc_html( $erp_labels[ $erp_status ][0] ); ?></span>
 					</div>
 					<?php if ( '' !== trim( $erp_row->instructions ) ) : ?><p class="erp-work__text"><?php echo nl2br( esc_html( $erp_row->instructions ) ); ?></p><?php endif; ?>
-					<?php mags_erp_file_link( (int) $erp_row->file_id ); ?>
+					<?php if ( ! empty( $erp_files[ (int) $erp_row->id ] ) ) : ?><div class="erp-files"><?php foreach ( $erp_files[ (int) $erp_row->id ] as $erp_file ) { mags_erp_file_link( $erp_file ); } ?></div><?php endif; ?>
 
 					<?php if ( 'checked' === $erp_status ) : ?>
 						<div class="erp-result">
