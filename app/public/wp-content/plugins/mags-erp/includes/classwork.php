@@ -24,8 +24,8 @@ function mags_erp_classes_homework( $class_ids, $limit = 200, $removed = false )
 	$h = mags_erp_table( 'homework' );
 	$s = mags_erp_table( 'submissions' );
 	$t = mags_erp_table( 'students' );
-	// Answers are counted for students who are in the class now, the same students the answer list shows.
-	$count = "SELECT COUNT(*) FROM {$s} INNER JOIN {$t} ON {$t}.id = {$s}.student_id WHERE {$s}.homework_id = h.id AND {$t}.hidden_at IS NULL AND {$t}.class_id = h.class_id";
+	// Answers of students who are still in the school are counted, also of those who moved up to another class since (mags_erp_homework_students()).
+	$count = "SELECT COUNT(*) FROM {$s} INNER JOIN {$t} ON {$t}.id = {$s}.student_id WHERE {$s}.homework_id = h.id AND {$t}.hidden_at IS NULL";
 	return (array) $wpdb->get_results( $wpdb->prepare( "SELECT h.*, ({$count}) AS submitted_count, ({$count} AND {$s}.checked_at IS NOT NULL) AS checked_count FROM {$h} h WHERE h.class_id IN (" . mags_erp_id_list( $class_ids ) . ') AND h.hidden_at IS ' . ( $removed ? 'NOT NULL' : 'NULL' ) . ' ORDER BY h.created_at DESC, h.id DESC LIMIT %d', $limit ) );
 }
 
@@ -34,7 +34,7 @@ function mags_erp_student_homework( $student, $limit = 200 ) {
 	global $wpdb;
 	$h = mags_erp_table( 'homework' );
 	$s = mags_erp_table( 'submissions' );
-	return (array) $wpdb->get_results( $wpdb->prepare( "SELECT h.*, s.id AS submission_id, s.file_id AS submission_file_id, s.student_note, s.submitted_at, s.marks, s.feedback, s.checked_at FROM {$h} h LEFT JOIN {$s} s ON s.homework_id = h.id AND s.student_id = %d WHERE h.class_id = %d AND h.hidden_at IS NULL ORDER BY h.created_at DESC, h.id DESC LIMIT %d", $student->id, $student->class_id, $limit ) );
+	return (array) $wpdb->get_results( $wpdb->prepare( "SELECT h.*, s.id AS submission_id, s.file_id AS submission_file_id, s.student_note, s.submitted_at, s.marks, s.feedback, s.checked_at FROM {$h} h LEFT JOIN {$s} s ON s.homework_id = h.id AND s.student_id = %d WHERE h.class_id = %d AND h.hidden_at IS NULL" . mags_erp_student_since_sql( $student, 'h.created_at' ) . ' ORDER BY h.created_at DESC, h.id DESC LIMIT %d', $student->id, $student->class_id, $limit ) );
 }
 
 function mags_erp_create_homework( $class_id, $teacher_id, $title, $instructions, $due_date, $max_marks ) {
@@ -97,6 +97,28 @@ function mags_erp_get_homework_file_link( $link_id ) {
 	return $link_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'homework_files' ) . ' WHERE id = %d AND hidden_at IS NULL', $link_id ) ) : null;
 }
 
+/**
+ * The students a homework was for: those in its class who were there when it
+ * was given, and after them the students who answered it and have moved to
+ * another class since (each with ->now_in, the label of their class now).
+ * Students who came to the class later by a promotion are not listed.
+ */
+function mags_erp_homework_students( $homework ) {
+	global $wpdb;
+	$list = array();
+	foreach ( mags_erp_class_students( (int) $homework->class_id ) as $student ) {
+		if ( empty( $student->class_since ) || $student->class_since <= $homework->created_at ) { $list[ (int) $student->id ] = $student; }
+	}
+	$labels = mags_erp_all_class_labels();
+	$moved  = array();
+	foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT t.* FROM ' . mags_erp_table( 'submissions' ) . ' s INNER JOIN ' . mags_erp_table( 'students' ) . ' t ON t.id = s.student_id WHERE s.homework_id = %d AND t.hidden_at IS NULL', $homework->id ) ) as $student ) {
+		if ( isset( $list[ (int) $student->id ] ) ) { continue; }
+		$student->now_in = $labels[ (int) $student->class_id ] ?? '';
+		$moved[]         = $student;
+	}
+	return array_merge( array_values( $list ), mags_erp_natural_sort( $moved, array( 'full_name' ) ) );
+}
+
 /* ---------- Submissions ---------- */
 
 /** student_id => submission for one homework. */
@@ -117,7 +139,7 @@ function mags_erp_get_student_submission( $homework_id, $student_id ) {
 	return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'submissions' ) . ' WHERE homework_id = %d AND student_id = %d', $homework_id, $student_id ) );
 }
 
-/** Save or replace a student's answer. A checked answer cannot be replaced. The replaced file is kept on disk, hidden. */
+/** Save or replace a student's answer. A checked answer cannot be replaced. The file of the replaced answer is deleted. */
 function mags_erp_save_submission( $homework_id, $student_id, $file_id, $student_note ) {
 	global $wpdb;
 	$table    = mags_erp_table( 'submissions' );
@@ -127,7 +149,7 @@ function mags_erp_save_submission( $homework_id, $student_id, $file_id, $student
 		if ( $existing->checked_at ) { return new WP_Error( 'mags_erp_submission', 'This homework has already been checked and cannot be changed.' ); }
 		$updated = $wpdb->update( $table, $data, array( 'id' => (int) $existing->id ), array( '%d', '%s', '%s' ), array( '%d' ) );
 		if ( false === $updated ) { return new WP_Error( 'mags_erp_submission', 'The answer could not be saved. Please try again.' ); }
-		if ( (int) $existing->file_id !== (int) $file_id ) { mags_erp_hide_file( (int) $existing->file_id ); }
+		if ( (int) $existing->file_id !== (int) $file_id ) { mags_erp_delete_replaced_file( (int) $existing->file_id ); }
 		return (int) $existing->id;
 	}
 	$saved = $wpdb->insert( $table, array_merge( $data, array( 'homework_id' => (int) $homework_id, 'student_id' => (int) $student_id, 'feedback' => '' ) ), array( '%d', '%s', '%s', '%d', '%d', '%s' ) );
@@ -162,10 +184,11 @@ function mags_erp_get_note( $note_id, $with_removed = false ) {
 	return $note && ( $with_removed || ! $note->hidden_at ) ? $note : null;
 }
 
-function mags_erp_classes_notes( $class_ids, $limit = 300, $removed = false ) {
+/** Notes of the given classes, newest first. With $student, only those made since the student came to the class. */
+function mags_erp_classes_notes( $class_ids, $limit = 300, $removed = false, $student = null ) {
 	global $wpdb;
 	if ( ! $class_ids ) { return array(); }
-	return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'notes' ) . ' WHERE class_id IN (' . mags_erp_id_list( $class_ids ) . ') AND hidden_at IS ' . ( $removed ? 'NOT NULL' : 'NULL' ) . ' ORDER BY created_at DESC, id DESC LIMIT %d', $limit ) );
+	return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'notes' ) . ' WHERE class_id IN (' . mags_erp_id_list( $class_ids ) . ') AND hidden_at IS ' . ( $removed ? 'NOT NULL' : 'NULL' ) . mags_erp_student_since_sql( $student, 'created_at' ) . ' ORDER BY created_at DESC, id DESC LIMIT %d', $limit ) );
 }
 
 function mags_erp_create_note( $class_id, $teacher_id, $title, $description, $file_id ) {

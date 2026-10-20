@@ -43,5 +43,6 @@ $erp_tabs  = array(
 		<p class="erp-hint" data-erp-login-hint-target><?php echo esc_html( $erp_tabs[ $erp_as ][2] ); ?></p>
 		<p class="erp-hint">Forgot the password? Ask the school office for a new one.</p>
 		<?php if ( mags_erp_admissions_open() ) : ?><p class="erp-hint">New admission? <a href="<?php echo esc_url( mags_erp_url( 'admission' ) ); ?>">Fill the admission form</a>. No login is needed.</p><?php endif; ?>
+		<p class="erp-hint">Sent an admission form? <a href="<?php echo esc_url( mags_erp_url( 'admission-status' ) ); ?>">Check its status</a> with the application number.</p>
 	</form>
 </section>

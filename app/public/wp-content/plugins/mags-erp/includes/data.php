@@ -351,9 +351,21 @@ function mags_erp_remove_student( $student_id ) {
 }
 
 /**
- * Put a removed student back into their class. When the login itself was
- * deleted from the WordPress Users screen a new one is made. Returns the new
- * password in that case, '' otherwise, or a WP_Error.
+ * A student who got a transfer certificate has left the school: they are
+ * removed like above, and the date of leaving and the TC are kept with them.
+ */
+function mags_erp_mark_student_left( $student_id, $left_on, $certificate_id ) {
+	global $wpdb;
+	$student = mags_erp_get_student( $student_id );
+	if ( ! $student ) { return false; }
+	mags_erp_remove_student( (int) $student->id );
+	return false !== $wpdb->update( mags_erp_table( 'students' ), array( 'left_on' => $left_on, 'left_certificate_id' => (int) $certificate_id ), array( 'id' => (int) $student->id ), array( '%s', '%d' ), array( '%d' ) );
+}
+
+/**
+ * Put a removed (or left) student back into their class. When the login itself
+ * was deleted from the WordPress Users screen a new one is made. Returns the
+ * new password in that case, '' otherwise, or a WP_Error.
  */
 function mags_erp_restore_student( $student_id ) {
 	global $wpdb;
@@ -371,6 +383,7 @@ function mags_erp_restore_student( $student_id ) {
 		mags_erp_set_user_removed( (int) $student->user_id, false );
 	}
 	mags_erp_unhide( 'students', (int) $student->id );
+	$wpdb->update( mags_erp_table( 'students' ), array( 'left_on' => null, 'left_certificate_id' => 0 ), array( 'id' => (int) $student->id ), array( '%s', '%d' ), array( '%d' ) );
 	return $password;
 }
 

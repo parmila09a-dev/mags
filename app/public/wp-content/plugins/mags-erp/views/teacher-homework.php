@@ -13,7 +13,7 @@ $erp_today = mags_erp_today();
 
 if ( $erp_homework ) :
 	$erp_class       = $erp_class_map[ (int) $erp_homework->class_id ];
-	$erp_students    = mags_erp_class_students( (int) $erp_class->id );
+	$erp_students    = mags_erp_homework_students( $erp_homework );
 	$erp_submissions = array_intersect_key( mags_erp_homework_submissions( (int) $erp_homework->id ), array_flip( array_map( 'intval', wp_list_pluck( $erp_students, 'id' ) ) ) );
 	$erp_files       = mags_erp_homework_files( (int) $erp_homework->id );
 	$erp_room        = MAGS_ERP_HOMEWORK_FILES - count( $erp_files );
@@ -89,7 +89,7 @@ if ( $erp_homework ) :
 				<?php foreach ( $erp_students as $erp_student ) : $erp_sub = $erp_submissions[ (int) $erp_student->id ] ?? null; ?>
 					<li class="erp-row erp-answer">
 						<div class="erp-row__main">
-							<strong><?php if ( '' !== $erp_student->roll_no ) : ?><span class="erp-roll"><?php echo esc_html( $erp_student->roll_no ); ?></span><?php endif; ?><?php echo esc_html( $erp_student->full_name ); ?></strong>
+							<strong><?php if ( '' !== $erp_student->roll_no ) : ?><span class="erp-roll"><?php echo esc_html( $erp_student->roll_no ); ?></span><?php endif; ?><?php echo esc_html( $erp_student->full_name ); ?><?php if ( ! empty( $erp_student->now_in ) ) : ?> <span class="erp-chip">Now in <?php echo esc_html( $erp_student->now_in ); ?></span><?php endif; ?></strong>
 							<?php if ( ! $erp_sub ) : ?>
 								<span class="erp-row__chips"><span class="erp-chip <?php echo $erp_homework->due_date && $erp_homework->due_date < $erp_today ? 'erp-chip--status-A' : 'erp-chip--orange'; ?>">Not answered</span></span>
 							<?php else : ?>

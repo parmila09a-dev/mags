@@ -384,6 +384,33 @@ html {
 	margin-top: 14px;
 }
 
+.erp-code {
+	margin: 10px 0;
+	padding: 12px 14px;
+	overflow-x: auto;
+	border-radius: var(--erp-radius-sm);
+	color: var(--erp-ink);
+	background: #fff;
+	box-shadow: var(--erp-pressed);
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: .86rem;
+	line-height: 1.5;
+	white-space: pre;
+}
+
+.erp-code-steps {
+	display: grid;
+	gap: 8px;
+	margin: 10px 0 0;
+	padding-left: 18px;
+}
+
+.erp-code-steps code,
+.erp-card p code {
+	font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+	font-size: .9em;
+}
+
 .erp-foot {
 	max-width: 1040px;
 	margin: 22px auto 0;
@@ -2592,6 +2619,10 @@ html {
 	text-align: center;
 }
 
+.erp-admission__done .erp-facts {
+	text-align: left;
+}
+
 .erp-admission__number {
 	justify-self: center;
 	padding: 10px 22px;
@@ -2652,5 +2683,243 @@ html {
 
 	.erp-admission {
 		padding-top: 2vh;
+	}
+}
+
+/* ---------- Today page, substitutes, promotion ---------- */
+
+.erp-big {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 6px 12px;
+	margin: 6px 0 12px;
+}
+
+.erp-big strong {
+	font-size: 2rem;
+	font-weight: 900;
+	line-height: 1.1;
+}
+
+.erp-big span {
+	color: var(--erp-muted);
+	font-weight: 700;
+}
+
+.erp-inline-form {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.erp-inline-form select {
+	min-height: 40px;
+	max-width: 220px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: 12px;
+	color: var(--erp-ink);
+	background: #fff;
+	box-shadow: var(--erp-pressed);
+	font: inherit;
+	font-weight: 700;
+}
+
+.erp-promo {
+	align-items: flex-start;
+}
+
+.erp-promo__keep {
+	margin-top: 6px;
+}
+
+.erp-promo__keep summary {
+	color: var(--erp-blue-text);
+	font-weight: 800;
+	cursor: pointer;
+}
+
+.erp-promo__keep .erp-checks {
+	margin-top: 10px;
+}
+
+.erp-promo__to {
+	min-width: min(100%, 240px);
+}
+
+/* ---------- Marks graph ---------- */
+
+.erp-chart {
+	display: block;
+	width: 100%;
+	height: auto;
+	margin: 8px 0 4px;
+	overflow: visible;
+}
+
+.erp-chart__grid {
+	stroke: rgba(40, 40, 80, .12);
+	stroke-width: 1;
+}
+
+.erp-chart__axis,
+.erp-chart__label {
+	fill: var(--erp-muted);
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.erp-chart__line {
+	fill: none;
+	stroke: var(--erp-navy);
+	stroke-width: 3;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.erp-chart__dot {
+	fill: var(--erp-orange);
+	stroke: #fff;
+	stroke-width: 2;
+}
+
+.erp-chart__value {
+	fill: var(--erp-ink);
+	font-size: 13px;
+	font-weight: 900;
+}
+
+.erp-chart__absent {
+	fill: var(--erp-red-text);
+	font-size: 12px;
+	font-weight: 900;
+}
+
+.erp-chart--small {
+	margin: 2px 0;
+}
+
+.erp-chart--small .erp-chart__line {
+	stroke-width: 2.5;
+}
+
+.erp-subjects {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+	gap: 12px;
+	margin: 8px 0 14px;
+	padding: 0;
+	list-style: none;
+}
+
+.erp-subject {
+	padding: 12px 14px;
+	border-radius: var(--erp-radius-sm);
+	background: #fff;
+	box-shadow: var(--erp-pressed);
+}
+
+.erp-subject__head {
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+	font-weight: 800;
+}
+
+.erp-trend {
+	display: inline-block;
+	font-size: .86rem;
+	font-weight: 800;
+}
+
+.erp-trend--up {
+	color: var(--erp-green-text);
+}
+
+.erp-trend--down {
+	color: var(--erp-red-text);
+}
+
+.erp-trend--same,
+.erp-trend--none {
+	color: var(--erp-muted);
+}
+
+/* ---------- Parent-teacher meeting slots ---------- */
+
+.erp-slots {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 6px 0 14px;
+}
+
+.erp-slot-form {
+	margin: 0;
+}
+
+.erp-slot {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-width: 86px;
+	min-height: 48px;
+	padding: 6px 12px;
+	border: 0;
+	border-radius: 14px;
+	color: var(--erp-ink);
+	background: var(--erp-clay);
+	box-shadow: var(--erp-raised-sm);
+	font: inherit;
+	font-weight: 900;
+	cursor: pointer;
+}
+
+button.erp-slot:hover,
+button.erp-slot:focus-visible {
+	background: var(--erp-blue-soft);
+}
+
+.erp-slot small {
+	font-size: .72rem;
+	font-weight: 800;
+}
+
+.erp-slot--taken {
+	color: var(--erp-muted);
+	background: transparent;
+	box-shadow: var(--erp-pressed);
+	cursor: default;
+	text-decoration: line-through;
+}
+
+.erp-slot--mine {
+	color: var(--erp-green-text);
+	background: var(--erp-green-soft);
+	box-shadow: var(--erp-pressed);
+	cursor: default;
+}
+
+@media (forced-colors: active) {
+	.erp-chart__line {
+		stroke: CanvasText;
+	}
+
+	.erp-chart__dot {
+		fill: Highlight;
+	}
+
+	.erp-slot {
+		border: 1px solid CanvasText;
+	}
+}
+
+@media print {
+	.erp-inline-form,
+	.erp-slot-form {
+		display: none;
 	}
 }

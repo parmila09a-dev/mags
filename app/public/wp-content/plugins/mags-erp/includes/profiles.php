@@ -26,7 +26,7 @@ function mags_erp_get_profile( $student_id ) {
 	global $wpdb;
 	$profile = $student_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'student_profiles' ) . ' WHERE student_id = %d', $student_id ) ) : null;
 	if ( $profile ) { return $profile; }
-	return (object) array( 'student_id' => (int) $student_id, 'gender' => '', 'dob' => null, 'father_name' => '', 'mother_name' => '', 'guardian_phone' => '', 'emergency_name' => '', 'emergency_phone' => '', 'blood_group' => '', 'address' => '', 'admitted_on' => null, 'photo_file_id' => 0, 'updated_by' => 0, 'updated_at' => null );
+	return (object) array( 'student_id' => (int) $student_id, 'gender' => '', 'dob' => null, 'father_name' => '', 'mother_name' => '', 'guardian_phone' => '', 'parent_email' => '', 'emergency_name' => '', 'emergency_phone' => '', 'blood_group' => '', 'address' => '', 'admitted_on' => null, 'photo_file_id' => 0, 'updated_by' => 0, 'updated_at' => null );
 }
 
 /** Write profile values ($data is column => value) for a student, creating the row when needed. */
@@ -45,8 +45,8 @@ function mags_erp_write_profile( $student_id, array $data ) {
 
 /**
  * Check profile values typed in a form. $values has gender, dob, father_name,
- * mother_name, guardian_phone, emergency_name, emergency_phone, blood_group,
- * address and admitted_on as text. Returns the clean column => value list or a WP_Error.
+ * mother_name, guardian_phone, parent_email, emergency_name, emergency_phone,
+ * blood_group, address and admitted_on as text. Returns the clean column => value list or a WP_Error.
  */
 function mags_erp_clean_profile( array $values ) {
 	$today = mags_erp_today();
@@ -70,6 +70,8 @@ function mags_erp_clean_profile( array $values ) {
 		$clean[ $key ] = mags_erp_clean_phone( $typed );
 		if ( '' !== $typed && '' === $clean[ $key ] ) { return new WP_Error( 'mags_erp_profile', $label . ' must have 10 to 15 digits.' ); }
 	}
+	$clean['parent_email'] = trim( (string) ( $values['parent_email'] ?? '' ) );
+	if ( '' !== $clean['parent_email'] && ( ! is_email( $clean['parent_email'] ) || mb_strlen( $clean['parent_email'] ) > 120 ) ) { return new WP_Error( 'mags_erp_profile', 'The parent’s email address is not correct. You can also leave it empty.' ); }
 	$clean['address'] = trim( preg_replace( '/\s+/', ' ', (string) ( $values['address'] ?? '' ) ) );
 	if ( mb_strlen( $clean['address'] ) > 500 ) { return new WP_Error( 'mags_erp_profile', 'The address is too long (500 characters at most).' ); }
 	return $clean;
@@ -155,11 +157,16 @@ function mags_erp_store_photo( $field ) {
 	return (int) $wpdb->insert_id;
 }
 
-/** Give a student a new photo (or none with 0). The earlier photo is kept on the server, hidden. */
+/**
+ * Give a student a new photo, or none with 0. A photo replaced by a new one is
+ * deleted from the server; a photo taken off without a new one is kept, hidden.
+ */
 function mags_erp_set_student_photo( $student_id, $file_id ) {
 	$old = (int) mags_erp_get_profile( $student_id )->photo_file_id;
 	if ( ! mags_erp_write_profile( $student_id, array( 'photo_file_id' => (int) $file_id ) ) ) { return false; }
-	if ( $old && $old !== (int) $file_id ) { mags_erp_hide_file( $old ); }
+	if ( $old && $old !== (int) $file_id ) {
+		if ( $file_id ) { mags_erp_delete_replaced_file( $old ); } else { mags_erp_hide_file( $old ); }
+	}
 	return true;
 }
 
@@ -234,7 +241,7 @@ function mags_erp_action_save_profile() {
 	$back = mags_erp_url( 'profile', array( 'student' => (int) $student->id ) );
 
 	$values = array();
-	foreach ( array( 'gender', 'dob', 'father_name', 'mother_name', 'guardian_phone', 'emergency_name', 'emergency_phone', 'blood_group', 'admitted_on' ) as $key ) { $values[ $key ] = mags_erp_post_text( $key ); }
+	foreach ( array( 'gender', 'dob', 'father_name', 'mother_name', 'guardian_phone', 'parent_email', 'emergency_name', 'emergency_phone', 'blood_group', 'admitted_on' ) as $key ) { $values[ $key ] = mags_erp_post_text( $key ); }
 	$values['address'] = mags_erp_post_textarea( 'address', 600 );
 	$clean = mags_erp_clean_profile( $values );
 	if ( is_wp_error( $clean ) ) { mags_erp_flash( 'error', $clean->get_error_message() ); return $back; }

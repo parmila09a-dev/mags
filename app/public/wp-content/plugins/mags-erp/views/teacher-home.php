@@ -13,6 +13,34 @@ $erp_holiday = mags_erp_holiday_on( $erp_today );
 	<?php if ( $erp_holiday ) : ?><p class="erp-head__meta"><span class="erp-chip erp-chip--blue">Today is a holiday: <?php echo esc_html( $erp_holiday->title ); ?></span></p><?php endif; ?>
 </header>
 
+<?php $erp_standing = mags_erp_substitutions_on( $erp_today, $ctx['user']->ID ); ?>
+<?php if ( $erp_standing ) : ?>
+	<section class="erp-card erp-card--alert" aria-labelledby="erp-standin-title">
+		<h2 id="erp-standin-title">You stand in today</h2>
+		<ul class="erp-list erp-list--tight">
+			<?php foreach ( $erp_standing as $erp_sub ) : ?>
+				<li class="erp-row">
+					<div class="erp-row__main">
+						<strong><?php echo esc_html( ( $erp_sub->period ? 'Period ' . $erp_sub->period->label : 'Whole day' ) . ' · ' . $erp_sub->class_label ); ?></strong>
+						<span><?php echo esc_html( trim( ( $erp_sub->period ? mags_erp_period_time( $erp_sub->period ) . ' · ' : '' ) . ( '' !== $erp_sub->subject_name ? $erp_sub->subject_name . ' · ' : '' ) . ( '' !== $erp_sub->absent_name ? 'for ' . $erp_sub->absent_name : '' ), ' ·' ) ); ?></span>
+						<?php if ( '' !== $erp_sub->note ) : ?><span class="erp-quote"><?php echo esc_html( $erp_sub->note ); ?></span><?php endif; ?>
+					</div>
+					<?php if ( ! $erp_holiday ) : ?><div class="erp-row__actions"><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'attendance', array( 'class' => (int) $erp_sub->class_id ) ) ); ?>">Attendance<span class="erp-sr"> of <?php echo esc_html( $erp_sub->class_label ); ?></span></a></div><?php endif; ?>
+				</li>
+			<?php endforeach; ?>
+		</ul>
+		<p class="erp-hint">The school office gave you these for today. You can mark the attendance of these classes today.</p>
+	</section>
+<?php endif; ?>
+<?php $erp_meetings = mags_erp_teacher_ptm_on( $ctx['user']->ID, $erp_today ); ?>
+<?php if ( $erp_meetings ) : ?>
+	<section class="erp-card" aria-labelledby="erp-ptm-today-title">
+		<h2 id="erp-ptm-today-title">Parent meetings today <span class="erp-count"><?php echo esc_html( count( $erp_meetings ) ); ?></span></h2>
+		<p><?php echo esc_html( implode( ' · ', array_map( static function ( $erp_slot ) { return mags_erp_format_time( $erp_slot->start_time ) . ' ' . $erp_slot->student_name; }, $erp_meetings ) ) ); ?></p>
+		<p class="erp-card__actions"><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'ptm' ) ); ?>">Open parent meetings</a></p>
+	</section>
+<?php endif; ?>
+
 <?php if ( $ctx['badges'] ) : $erp_waiting = array( 'homework' => array( '%d homework answer to check', '%d homework answers to check' ), 'questions' => array( '%d question waiting for your reply', '%d questions waiting for your reply' ), 'leave' => array( '%d leave request to answer', '%d leave requests to answer' ) ); ?>
 	<section class="erp-card erp-card--alert" aria-labelledby="erp-waiting-title">
 		<h2 id="erp-waiting-title">Waiting for you</h2>

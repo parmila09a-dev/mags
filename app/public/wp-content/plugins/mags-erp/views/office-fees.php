@@ -33,6 +33,13 @@ if ( $erp_student ) :
 			<p class="erp-hint">“Fees” is <?php echo esc_html( mags_erp_money( $erp_sums['fee'] ) ); ?><?php if ( $erp_sums['discount'] > 0 ) : ?> less <?php echo esc_html( mags_erp_money( $erp_sums['discount'] ) ); ?> discount<?php endif; ?><?php if ( $erp_sums['fine'] > 0 ) : ?> plus <?php echo esc_html( mags_erp_money( $erp_sums['fine'] ) ); ?> late fine<?php endif; ?>.</p>
 		<?php endif; ?>
 		<p class="erp-card__actions"><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'profile', array( 'student' => (int) $erp_student->id ) ) ); ?>">Profile</a></p>
+		<?php if ( mags_erp_mail_enabled( 'fees' ) && ! $erp_student->hidden_at && ! empty( mags_erp_fee_dues( array( (int) $erp_student->id ) )[ (int) $erp_student->id ]['overdue'] ) ) : ?>
+			<form method="post" action="<?php echo esc_url( $erp_back ); ?>">
+				<?php mags_erp_form_fields( 'send_fee_reminders' ); ?>
+				<input type="hidden" name="student_id" value="<?php echo esc_attr( $erp_student->id ); ?>">
+				<button class="erp-btn erp-btn--ghost erp-btn--sm" type="submit"><?php echo '' !== mags_erp_parent_email( (int) $erp_student->id ) ? 'Send fee reminder email' : 'Send fee reminder email (no parent email yet)'; ?></button>
+			</form>
+		<?php endif; ?>
 	</section>
 
 	<section class="erp-card" aria-labelledby="erp-pay-title">
@@ -203,7 +210,19 @@ if ( $erp_class || '' !== $erp_search ) {
 		<div class="erp-tally__item erp-tally__item--A"><dt>Left to collect</dt><dd><?php echo esc_html( mags_erp_money( max( 0, $erp_school['left'] ) ) ); ?></dd></div>
 	</dl>
 	<p class="erp-hint">Whole school, students who are in a class now. The portal only records fees and payments; nothing is paid online.</p>
+	<p class="erp-card__actions"><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'today' ) ); ?>">Fees received today</a></p>
 </section>
+
+<?php if ( mags_erp_mail_enabled( 'fees' ) ) : ?>
+	<section id="erp-reminders" class="erp-card" aria-labelledby="erp-remind-title">
+		<h2 id="erp-remind-title">Fee reminders by email</h2>
+		<p class="erp-hint erp-hint--lead">Parents get a reminder by themselves the morning after a fee’s last date has passed. This button sends one now to every parent whose child has an overdue fee (at most one a day each).</p>
+		<form method="post" action="<?php echo esc_url( mags_erp_url( 'fees' ) ); ?>" data-erp-confirm="Send a fee reminder email to every parent whose child has an overdue fee?">
+			<?php mags_erp_form_fields( 'send_fee_reminders' ); ?>
+			<button class="erp-btn erp-btn--navy erp-btn--sm" type="submit">Send fee reminders now</button>
+		</form>
+	</section>
+<?php endif; ?>
 
 <?php if ( ! $erp_classes ) : ?>
 	<p class="erp-card erp-empty">Add classes and students first. <a class="erp-btn erp-btn--orange erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'classes' ) ); ?>">Add classes</a></p>

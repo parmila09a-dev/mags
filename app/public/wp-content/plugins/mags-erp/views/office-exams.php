@@ -43,6 +43,37 @@ if ( $erp_exam ) :
 		<?php endif; ?>
 	</section>
 
+	<section id="erp-admit" class="erp-card" aria-labelledby="erp-admit-title">
+		<h2 id="erp-admit-title">Date sheet and admit cards <?php if ( $erp_exam->datesheet_at ) : ?><span class="erp-chip erp-chip--green">Shared with students</span><?php else : ?><span class="erp-chip">Not shared yet</span><?php endif; ?></h2>
+		<form class="erp-form" method="post" action="<?php echo esc_url( mags_erp_url( 'exams', array( 'id' => (int) $erp_exam->id ) ) ); ?>">
+			<?php mags_erp_form_fields( 'save_admit_settings' ); ?>
+			<input type="hidden" name="exam_id" value="<?php echo esc_attr( $erp_exam->id ); ?>">
+			<p class="erp-check"><label><input type="checkbox" name="share" value="1" <?php checked( (bool) $erp_exam->datesheet_at ); ?>> <span>Show the date sheet to students and parents (More → Exams) and let them download the admit card</span></label></p>
+			<fieldset class="erp-checks">
+				<legend>Who gets an admit card</legend>
+				<?php foreach ( mags_erp_admit_rules() as $erp_rule => $erp_rule_label ) : ?>
+					<label class="erp-pill"><input type="radio" name="admit_rule" value="<?php echo esc_attr( $erp_rule ); ?>" <?php checked( ( $erp_exam->admit_rule ?: 'none' ), $erp_rule ); ?>><span><?php echo esc_html( $erp_rule_label ); ?></span></label>
+				<?php endforeach; ?>
+			</fieldset>
+			<p class="erp-field"><label for="erp_admit_note">Instructions printed on the date sheet and admit card <span>(optional)</span></label><textarea id="erp_admit_note" name="admit_note" rows="2" maxlength="600" placeholder="<?php echo esc_attr( mags_erp_admit_default_note() ); ?>"><?php echo esc_textarea( (string) $erp_exam->admit_note ); ?></textarea></p>
+			<div class="erp-form__actions"><button class="erp-btn erp-btn--navy" type="submit">Save</button></div>
+		</form>
+		<?php if ( $erp_groups ) : ?>
+			<ul class="erp-list erp-list--tight">
+				<?php foreach ( $erp_groups as $erp_group_label => $erp_group ) : $erp_group_class = (int) $erp_group[0]->class_id; ?>
+					<li class="erp-row">
+						<div class="erp-row__main"><strong><?php echo esc_html( $erp_group_label ); ?></strong><span><?php echo esc_html( sprintf( _n( '%d paper', '%d papers', count( $erp_group ), 'mags-erp' ), count( $erp_group ) ) ); ?></span></div>
+						<div class="erp-row__actions">
+							<a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'date-sheet', array( 'exam' => (int) $erp_exam->id, 'class' => $erp_group_class ) ) ); ?>">Date sheet (PDF)<span class="erp-sr"> of <?php echo esc_html( $erp_group_label ); ?></span></a>
+							<a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'admit-cards', array( 'exam' => (int) $erp_exam->id, 'class' => $erp_group_class ) ) ); ?>">Admit cards<span class="erp-sr"> of <?php echo esc_html( $erp_group_label ); ?></span></a>
+						</div>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
+		<p class="erp-hint">With a fee rule, a student whose fees are not paid sees why the card is held. Under “Admit cards” you can hold one student’s card or let one through anyway, and print any card at the office.</p>
+	</section>
+
 	<?php if ( ! $erp_exam->published_at ) : ?>
 		<section class="erp-card" aria-labelledby="erp-paper-form-title">
 			<h2 id="erp-paper-form-title">Add papers</h2>
@@ -56,6 +87,8 @@ if ( $erp_exam ) :
 						<p class="erp-field"><label for="erp_paper_subject">Subject</label><select id="erp_paper_subject" name="subject_id" required><option value="">Choose subject</option><?php foreach ( $erp_subjects as $erp_subject ) : ?><option value="<?php echo esc_attr( $erp_subject->id ); ?>"><?php echo esc_html( $erp_subject->name ); ?></option><?php endforeach; ?></select></p>
 						<p class="erp-field"><label for="erp_paper_max">Maximum marks</label><input id="erp_paper_max" name="max_marks" type="text" inputmode="decimal" maxlength="7" placeholder="100" required></p>
 						<p class="erp-field"><label for="erp_paper_date">Date of the paper <span>(optional)</span></label><input id="erp_paper_date" name="exam_date" type="date"></p>
+						<p class="erp-field"><label for="erp_paper_start">Starts at <span>(optional)</span></label><input id="erp_paper_start" name="start_time" type="time" step="300"></p>
+						<p class="erp-field"><label for="erp_paper_end">Ends at <span>(optional)</span></label><input id="erp_paper_end" name="end_time" type="time" step="300"></p>
 					</div>
 					<fieldset class="erp-checks">
 						<legend>Classes that write this paper</legend>
@@ -65,7 +98,7 @@ if ( $erp_exam ) :
 					</fieldset>
 					<div class="erp-form__actions"><button class="erp-btn erp-btn--orange" type="submit">Add paper</button></div>
 				</form>
-				<p class="erp-hint">To change the maximum marks or date of a paper, add it again with the new values.</p>
+				<p class="erp-hint">To change the maximum marks, date or time of a paper, add it again with the new values. The date and time are printed on the date sheet and the admit card.</p>
 			<?php endif; ?>
 		</section>
 	<?php endif; ?>
@@ -82,7 +115,7 @@ if ( $erp_exam ) :
 					<li class="erp-row">
 						<div class="erp-row__main">
 							<strong><?php echo esc_html( $erp_paper->subject_name ); ?></strong>
-							<span>Out of <?php echo esc_html( mags_erp_format_marks( $erp_paper->max_marks ) ); ?><?php if ( $erp_paper->exam_date ) : ?> · <?php echo esc_html( mags_erp_format_date( $erp_paper->exam_date, 'j M Y' ) ); ?><?php endif; ?></span>
+							<span>Out of <?php echo esc_html( mags_erp_format_marks( $erp_paper->max_marks ) ); ?><?php if ( $erp_paper->exam_date ) : ?> · <?php echo esc_html( mags_erp_format_date( $erp_paper->exam_date, 'D j M Y' ) ); ?><?php endif; ?><?php if ( '' !== mags_erp_paper_time( $erp_paper ) ) : ?> · <?php echo esc_html( mags_erp_paper_time( $erp_paper ) ); ?><?php endif; ?></span>
 							<span class="erp-row__chips"><span class="erp-chip <?php echo $erp_done ? 'erp-chip--green' : 'erp-chip--orange'; ?>">Marks: <?php echo esc_html( $erp_paper->entered_count ); ?> of <?php echo esc_html( $erp_class_total ); ?></span></span>
 						</div>
 						<?php if ( ! $erp_exam->published_at ) : ?>

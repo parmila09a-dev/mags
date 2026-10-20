@@ -6,8 +6,21 @@
  *
  * A wrong entry is cancelled, not deleted: it stays in the list, struck out,
  * and is no longer counted.
+ *
+ * Discounts, late fines and cancelling are saved one at a time (the "fees"
+ * database lock): the checks that a discount is not more than the fee, and
+ * that the fee is not cancelled, would let two people saving at the same
+ * moment both through and the amounts would come out wrong.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
+
+/** Seconds to wait for another person's fee change to finish before giving up. */
+define( 'MAGS_ERP_FEES_LOCK_WAIT', 10 );
+
+/** Message when another fee change takes too long. */
+function mags_erp_fees_busy() {
+	mags_erp_flash( 'error', 'Someone else is saving a fee change right now. Please try again in a moment.' );
+}
 
 /** How a payment reached the school. Recorded for the office only. */
 function mags_erp_payment_modes() {
@@ -107,6 +120,43 @@ function mags_erp_school_fee_summary() {
 	}
 	$sum['left'] = round( $sum['charged'] - $sum['paid'], 2 );
 	return $sum;
+}
+
+/**
+ * What each student still owes, worked out the same way as on the fee screen
+ * (payments against the oldest fee first, after its discounts), for many
+ * students at once. Returns student_id => array( left, overdue, fees ), where
+ * "fees" lists the overdue fees (each with ->unpaid). Students who have left
+ * or were removed are not included; nor is anyone who owes nothing.
+ */
+function mags_erp_fee_dues( $student_ids = null ) {
+	global $wpdb;
+	if ( is_array( $student_ids ) && ! $student_ids ) { return array(); }
+	$only = is_array( $student_ids ) ? ' AND f.student_id IN (' . mags_erp_id_list( $student_ids ) . ')' : '';
+	$rows = (array) $wpdb->get_results( 'SELECT f.* FROM ' . mags_erp_table( 'fees' ) . ' f INNER JOIN ' . mags_erp_table( 'students' ) . " s ON s.id = f.student_id WHERE f.hidden_at IS NULL AND s.hidden_at IS NULL{$only} ORDER BY COALESCE(f.due_date, DATE(f.created_at)), f.id" );
+	$fees      = array();
+	$discounts = array();
+	foreach ( $rows as $row ) {
+		if ( 'discount' === $row->kind ) { $discounts[ (int) $row->parent_id ] = ( $discounts[ (int) $row->parent_id ] ?? 0.0 ) - (float) $row->amount; } else { $fees[ (int) $row->student_id ][] = $row; }
+	}
+	$totals = mags_erp_fee_totals( array_keys( $fees ) );
+	$dues   = array();
+	foreach ( $fees as $student_id => $list ) {
+		foreach ( $list as $fee ) { $fee->net = round( max( 0.0, (float) $fee->amount - ( $discounts[ (int) $fee->id ] ?? 0.0 ) ), 2 ); }
+		$total = $totals[ $student_id ] ?? array( 'charged' => 0.0, 'paid' => 0.0 );
+		$left  = round( $total['charged'] - $total['paid'], 2 );
+		if ( $left <= 0.004 ) { continue; }
+		$overdue = array();
+		$sum     = 0.0;
+		foreach ( mags_erp_allocate_payments( $list, $total['paid'] ) as $fee ) {
+			if ( 'overdue' !== $fee->state ) { continue; }
+			$fee->unpaid = round( $fee->net - $fee->paid_amount, 2 );
+			$sum        += $fee->unpaid;
+			$overdue[]   = $fee;
+		}
+		$dues[ $student_id ] = array( 'left' => $left, 'overdue' => round( $sum, 2 ), 'fees' => $overdue );
+	}
+	return $dues;
 }
 
 /**
@@ -252,9 +302,13 @@ function mags_erp_action_save_discount() {
 	}
 	if ( is_wp_error( $amount ) ) { mags_erp_flash( 'error', 'Enter the discount in rupees (500) or in per cent (10%).' ); return $back; }
 
+	// From here to the insert, another discount on this fee must not be saved in between.
+	if ( ! mags_erp_lock( 'fees', MAGS_ERP_FEES_LOCK_WAIT ) ) { mags_erp_fees_busy(); return $back; }
+	$fee = mags_erp_get_fee( (int) $fee->id );
+	if ( $fee->hidden_at ) { mags_erp_unlock( 'fees' ); mags_erp_flash( 'error', 'This fee was cancelled a moment ago. Count it again before giving a discount.' ); return $back; }
 	$given = -1 * (float) $wpdb->get_var( $wpdb->prepare( 'SELECT SUM(amount) FROM ' . mags_erp_table( 'fees' ) . " WHERE parent_id = %d AND kind = 'discount' AND hidden_at IS NULL", $fee->id ) );
 	$room  = round( (float) $fee->amount - $given, 2 );
-	if ( $amount > $room + 0.004 ) { mags_erp_flash( 'error', sprintf( 'The discount cannot be more than the fee. At most %s can still be taken off.', mags_erp_money( max( 0, $room ) ) ) ); return $back; }
+	if ( $amount > $room + 0.004 ) { mags_erp_unlock( 'fees' ); mags_erp_flash( 'error', sprintf( 'The discount cannot be more than the fee. At most %s can still be taken off.', mags_erp_money( max( 0, $room ) ) ) . ( $given > 0 ? ' ' . sprintf( 'Discounts of %s are already given on this fee.', mags_erp_money( $given ) ) : '' ) ); return $back; }
 
 	$title = $reasons[ $reason ] . ( '' !== $note ? ': ' . $note : '' );
 	$saved = $wpdb->insert(
@@ -262,6 +316,7 @@ function mags_erp_action_save_discount() {
 		array( 'student_id' => (int) $fee->student_id, 'title' => $title, 'amount' => -1 * $amount, 'kind' => 'discount', 'parent_id' => (int) $fee->id, 'reason' => $reason, 'created_by' => get_current_user_id(), 'created_at' => current_time( 'mysql' ) ),
 		array( '%d', '%s', '%f', '%s', '%d', '%s', '%d', '%s' )
 	);
+	mags_erp_unlock( 'fees' );
 	mags_erp_flash( $saved ? 'success' : 'error', $saved ? sprintf( 'Discount of %1$s (%2$s) given on “%3$s”.', mags_erp_money( $amount ), $title, $fee->title ) : 'The discount could not be saved. Please try again.' );
 	return $back;
 }
@@ -280,11 +335,14 @@ function mags_erp_action_save_fine() {
 	if ( mb_strlen( $note ) > 80 ) { mags_erp_flash( 'error', 'The note is too long (80 characters at most).' ); return $back; }
 
 	$title = mb_substr( 'Late fine: ' . $fee->title . ( '' !== $note ? ' (' . $note . ')' : '' ), 0, 120 );
+	if ( ! mags_erp_lock( 'fees', MAGS_ERP_FEES_LOCK_WAIT ) ) { mags_erp_fees_busy(); return $back; }
+	if ( mags_erp_get_fee( (int) $fee->id )->hidden_at ) { mags_erp_unlock( 'fees' ); mags_erp_flash( 'error', 'This fee was cancelled a moment ago.' ); return $back; }
 	$saved = $wpdb->insert(
 		mags_erp_table( 'fees' ),
 		array( 'student_id' => (int) $fee->student_id, 'title' => $title, 'amount' => $amount, 'kind' => 'fine', 'parent_id' => (int) $fee->id, 'reason' => 'late', 'created_by' => get_current_user_id(), 'created_at' => current_time( 'mysql' ) ),
 		array( '%d', '%s', '%f', '%s', '%d', '%s', '%d', '%s' )
 	);
+	mags_erp_unlock( 'fees' );
 	mags_erp_flash( $saved ? 'success' : 'error', $saved ? sprintf( 'Late fine of %1$s added for “%2$s”.', mags_erp_money( $amount ), $fee->title ) : 'The fine could not be saved. Please try again.' );
 	return $back;
 }
@@ -297,6 +355,18 @@ function mags_erp_action_save_fine() {
  * brings back only the fees cancelled in that same step.
  */
 function mags_erp_action_cancel_fee() {
+	if ( ! mags_erp_lock( 'fees', MAGS_ERP_FEES_LOCK_WAIT ) ) {
+		mags_erp_fees_busy();
+		$fee = mags_erp_get_fee( mags_erp_post_int( 'fee_id' ) );
+		return $fee ? mags_erp_url( 'fees', array( 'student' => (int) $fee->student_id ) ) : mags_erp_url( 'fees' );
+	}
+	$back = mags_erp_cancel_fee();
+	mags_erp_unlock( 'fees' );
+	return $back;
+}
+
+/** The work of mags_erp_action_cancel_fee(), done while the fees lock is held. */
+function mags_erp_cancel_fee() {
 	global $wpdb;
 	$fee = mags_erp_get_fee( mags_erp_post_int( 'fee_id' ) );
 	if ( ! $fee ) { mags_erp_flash( 'error', 'That fee no longer exists.' ); return mags_erp_url( 'fees' ); }

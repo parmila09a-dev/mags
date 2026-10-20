@@ -33,7 +33,7 @@ $erp_sample  = mags_erp_import_sample_rows();
 	<section class="erp-card" aria-labelledby="erp-import-how-title">
 		<h2 id="erp-import-how-title">How to make the file</h2>
 		<ol class="erp-steps erp-steps--plain">
-			<li><div><strong>Open Excel or Google Sheets</strong><p>Use the first line for the column names, exactly as in the sample below. Section and Roll No may be left empty.</p></div></li>
+			<li><div><strong>Open Excel or Google Sheets</strong><p>Use the first line for the column names, exactly as in the sample below. Section, Roll No and Parent Email may be left empty or left out. The parent email is used for the emails about absence, fees and results.</p></div></li>
 			<li><div><strong>One student on each line</strong><p>Write the class and section as they are named in the portal. The admission number becomes the login ID.</p></div></li>
 			<li><div><strong>Save as CSV</strong><p>In Excel choose File → Save As → “CSV UTF-8 (Comma delimited)”. In Google Sheets choose File → Download → “Comma-separated values”.</p></div></li>
 		</ol>

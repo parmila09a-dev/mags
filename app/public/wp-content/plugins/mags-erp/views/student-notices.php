@@ -7,7 +7,7 @@ if ( ! $erp_student ) {
 	mags_erp_no_student_record();
 	return;
 }
-$erp_notices = mags_erp_classes_notices( array( (int) $erp_student->class_id ) );
+$erp_notices = mags_erp_classes_notices( array( (int) $erp_student->class_id ), 200, false, $erp_student );
 $erp_today   = mags_erp_today();
 ?>
 <header class="erp-head">

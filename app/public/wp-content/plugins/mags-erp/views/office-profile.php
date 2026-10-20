@@ -36,7 +36,7 @@ if ( ! $erp_student ) :
 					<li class="erp-row<?php echo $erp_row->hidden_at ? ' erp-row--off' : ''; ?>">
 						<div class="erp-row__main">
 							<strong><?php echo esc_html( $erp_row->full_name ); ?></strong>
-							<span>Adm. no. <?php echo esc_html( $erp_row->admission_no ); ?> · <?php echo esc_html( $erp_labels[ (int) $erp_row->class_id ] ?? 'No class' ); ?><?php echo $erp_row->hidden_at ? ' · removed' : ''; ?></span>
+							<span>Adm. no. <?php echo esc_html( $erp_row->admission_no ); ?> · <?php echo esc_html( $erp_labels[ (int) $erp_row->class_id ] ?? 'No class' ); ?><?php echo $erp_row->left_on ? ' · left school' : ( $erp_row->hidden_at ? ' · removed' : '' ); ?></span>
 						</div>
 						<div class="erp-row__actions"><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'profile', array( 'student' => (int) $erp_row->id ) ) ); ?>">Open profile<span class="erp-sr"> of <?php echo esc_html( $erp_row->full_name ); ?></span></a></div>
 					</li>
@@ -63,7 +63,7 @@ foreach ( mags_erp_student_documents( (int) $erp_student->id, true ) as $erp_doc
 	<div>
 		<p class="erp-eyebrow"><a href="<?php echo esc_url( mags_erp_url( 'students', array( 'class' => $erp_student->hidden_at ? '' : (int) $erp_student->class_id, 'removed' => $erp_student->hidden_at ? 1 : '' ) ) ); ?>">← Students</a></p>
 		<h1><?php echo esc_html( $erp_student->full_name ); ?></h1>
-		<p class="erp-head__meta"><span class="erp-chip erp-chip--blue"><?php echo esc_html( $erp_labels[ (int) $erp_student->class_id ] ?? 'No class' ); ?></span><?php if ( '' !== $erp_student->roll_no ) : ?><span class="erp-chip">Roll no. <?php echo esc_html( $erp_student->roll_no ); ?></span><?php endif; ?><span class="erp-chip">Adm. no. <?php echo esc_html( $erp_student->admission_no ); ?></span><?php if ( $erp_student->hidden_at ) : ?><span class="erp-chip erp-chip--status-A">Removed student</span><?php endif; ?></p>
+		<p class="erp-head__meta"><span class="erp-chip erp-chip--blue"><?php echo esc_html( $erp_labels[ (int) $erp_student->class_id ] ?? 'No class' ); ?></span><?php if ( '' !== $erp_student->roll_no ) : ?><span class="erp-chip">Roll no. <?php echo esc_html( $erp_student->roll_no ); ?></span><?php endif; ?><span class="erp-chip">Adm. no. <?php echo esc_html( $erp_student->admission_no ); ?></span><?php if ( $erp_student->left_on ) : ?><span class="erp-chip erp-chip--status-A">Left school on <?php echo esc_html( mags_erp_format_date( $erp_student->left_on, 'j M Y' ) ); ?></span><?php elseif ( $erp_student->hidden_at ) : ?><span class="erp-chip erp-chip--status-A">Removed student</span><?php endif; ?></p>
 	</div>
 </header>
 
@@ -80,6 +80,7 @@ foreach ( mags_erp_student_documents( (int) $erp_student->id, true ) as $erp_doc
 			<p class="erp-field"><label for="erp_p_blood">Blood group</label><select id="erp_p_blood" name="blood_group"><option value="">Not known</option><?php foreach ( mags_erp_blood_groups() as $erp_text ) : ?><option value="<?php echo esc_attr( $erp_text ); ?>" <?php selected( $erp_profile->blood_group, $erp_text ); ?>><?php echo esc_html( $erp_text ); ?></option><?php endforeach; ?></select></p>
 			<p class="erp-field"><label for="erp_p_admitted">Date of admission</label><input id="erp_p_admitted" name="admitted_on" type="date" max="<?php echo esc_attr( $erp_today ); ?>" value="<?php echo esc_attr( (string) $erp_profile->admitted_on ); ?>"></p>
 			<p class="erp-field"><label for="erp_p_phone">Parent’s phone number</label><input id="erp_p_phone" name="guardian_phone" type="tel" inputmode="tel" maxlength="20" autocomplete="off" value="<?php echo esc_attr( $erp_profile->guardian_phone ); ?>"></p>
+			<p class="erp-field"><label for="erp_p_email">Parent’s email <span>(optional)</span></label><input id="erp_p_email" name="parent_email" type="email" maxlength="120" autocomplete="off" value="<?php echo esc_attr( $erp_profile->parent_email ); ?>"><small>For the emails about absence, fees and results (More → Settings).</small></p>
 			<p class="erp-field"><label for="erp_p_emergency">Emergency number</label><input id="erp_p_emergency" name="emergency_phone" type="tel" inputmode="tel" maxlength="20" autocomplete="off" value="<?php echo esc_attr( $erp_profile->emergency_phone ); ?>"><small>The number to call when the child is hurt or unwell.</small></p>
 			<p class="erp-field"><label for="erp_p_emergency_name">Whose number is it <span>(optional)</span></label><input id="erp_p_emergency_name" name="emergency_name" type="text" maxlength="120" autocomplete="off" placeholder="Uncle, grandmother…" value="<?php echo esc_attr( $erp_profile->emergency_name ); ?>"></p>
 		</div>
@@ -117,6 +118,21 @@ foreach ( mags_erp_student_documents( (int) $erp_student->id, true ) as $erp_doc
 		<p class="erp-hint">The card shows the photo, name, class, admission and roll number on the front, and date of birth, blood group, parent, emergency number and address on the back. Print the page at 100% and cut along the dotted lines.<?php if ( ! (int) $erp_profile->photo_file_id ) : ?> <strong>This student has no photo yet</strong>, so the card has an empty box for it.<?php endif; ?></p>
 	<?php endif; ?>
 </section>
+
+<?php mags_erp_print_progress( $erp_student, 'Marks in each exam' ); ?>
+<?php $erp_class_history = mags_erp_student_class_history( (int) $erp_student->id ); ?>
+<?php if ( $erp_class_history ) : ?>
+	<section class="erp-card" aria-labelledby="erp-history-title">
+		<h2 id="erp-history-title">Class history</h2>
+		<ul class="erp-list erp-list--tight">
+			<?php foreach ( $erp_class_history as $erp_moved ) : ?>
+				<li class="erp-row"><div class="erp-row__main"><strong><?php echo esc_html( $erp_moved->class_label ); ?><?php echo '' !== $erp_moved->session ? esc_html( ' · session ' . $erp_moved->session ) : ''; ?></strong><span><?php echo esc_html( ( '' !== $erp_moved->roll_no ? 'Roll no. ' . $erp_moved->roll_no . ' · ' : '' ) . 'then ' . ( (int) $erp_moved->to_class_id ? 'moved to ' . $erp_moved->to_label : $erp_moved->to_label ) . ' on ' . mags_erp_format_datetime( $erp_moved->moved_at, 'j M Y' ) ); ?></span></div></li>
+			<?php endforeach; ?>
+			<li class="erp-row"><div class="erp-row__main"><strong><?php echo esc_html( $erp_student->hidden_at ? 'Left the school' : ( $erp_labels[ (int) $erp_student->class_id ] ?? 'No class' ) . ' · now' ); ?></strong></div></li>
+		</ul>
+		<p class="erp-hint">Attendance, marks and report cards of the earlier classes are kept; the report cards are under Reports → Marks.</p>
+	</section>
+<?php endif; ?>
 
 <section aria-labelledby="erp-documents-title">
 	<h2 id="erp-documents-title" class="erp-section-title">Documents <span class="erp-count"><?php echo esc_html( count( $erp_documents ) ); ?></span></h2>
@@ -206,7 +222,7 @@ foreach ( mags_erp_student_documents( (int) $erp_student->id, true ) as $erp_doc
 			<?php if ( $erp_profile->dob ) : ?>
 				<details class="erp-upload">
 					<summary class="erp-btn erp-btn--ghost erp-btn--sm">Transfer certificate (TC)</summary>
-					<form class="erp-form erp-upload__form" method="post" action="<?php echo esc_url( $erp_back ); ?>" data-erp-confirm="Make the transfer certificate with these details?">
+					<form class="erp-form erp-upload__form" method="post" action="<?php echo esc_url( $erp_back ); ?>" data-erp-confirm="<?php echo esc_attr( $erp_student->hidden_at ? 'Make the transfer certificate with these details?' : 'Make the transfer certificate with these details? ' . $erp_student->full_name . ' will be marked as left and can no longer sign in.' ); ?>">
 						<?php mags_erp_form_fields( 'issue_certificate' ); ?>
 						<input type="hidden" name="student_id" value="<?php echo esc_attr( $erp_student->id ); ?>"><input type="hidden" name="kind" value="tc">
 						<div class="erp-form__grid">
@@ -217,7 +233,7 @@ foreach ( mags_erp_student_documents( (int) $erp_student->id, true ) as $erp_doc
 							<p class="erp-field"><label for="erp_tc_nationality">Nationality</label><input id="erp_tc_nationality" name="nationality" type="text" maxlength="40" value="Indian"></p>
 							<p class="erp-field"><label for="erp_tc_remarks">Remarks <span>(optional)</span></label><input id="erp_tc_remarks" name="remarks" type="text" maxlength="300"></p>
 						</div>
-						<p class="erp-hint">The portal fills in the class, the date of admission, the days present in the session and whether the fees are paid. Making a TC does not remove the student; remove the student under Students when they have left.</p>
+						<p class="erp-hint">The portal fills in the class, the date of admission, the days present in the session and whether the fees are paid. Making the TC marks the student as left: they leave the class lists and the login is switched off. Attendance, marks and fees are kept, and the student can be restored under Students → Removed students.</p>
 						<div class="erp-form__actions"><button class="erp-btn erp-btn--orange erp-btn--sm" type="submit">Make transfer certificate</button></div>
 					</form>
 				</details>

@@ -1,5 +1,5 @@
 <?php
-/** Teacher: mark or correct one day's attendance for one of their own classes. */
+/** Teacher: mark or correct one day's attendance for one of their own classes, or a class they stand in for that day. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 $erp_today    = mags_erp_today();
@@ -11,6 +11,9 @@ $erp_class_id = isset( $_GET['class'] ) ? absint( $_GET['class'] ) : 0;
 $erp_date     = isset( $_GET['date'] ) && is_string( $_GET['date'] ) ? sanitize_text_field( wp_unslash( $_GET['date'] ) ) : $erp_today;
 // phpcs:enable
 $erp_date     = mags_erp_valid_date( $erp_date ) && $erp_date <= $erp_today ? $erp_date : $erp_today;
+// A class given to this teacher as a substitute can be marked on that day only.
+$erp_standin  = array_map( 'intval', wp_list_pluck( mags_erp_substitute_classes( $ctx['user']->ID, $erp_date ), 'id' ) );
+$erp_classes  = array_merge( $erp_classes, mags_erp_substitute_classes( $ctx['user']->ID, $erp_date ) );
 
 $erp_class = null;
 foreach ( $erp_classes as $erp_own_class ) {
@@ -18,7 +21,7 @@ foreach ( $erp_classes as $erp_own_class ) {
 }
 $erp_students = $erp_class ? mags_erp_class_students( (int) $erp_class->id ) : array();
 $erp_marks    = mags_erp_attendance_for_students( wp_list_pluck( $erp_students, 'id' ), $erp_date );
-// Attendance is not marked on a holiday of the school calendar.
+// Attendance is not marked on a holiday of the school calendar or on Sunday.
 $erp_holiday  = mags_erp_holiday_on( $erp_date );
 // A student with approved leave starts as "Leave" on a day that is not saved yet; the teacher can still change it.
 $erp_on_leave = mags_erp_approved_leave_on( wp_list_pluck( $erp_students, 'id' ), $erp_date );
@@ -26,6 +29,7 @@ $erp_on_leave = mags_erp_approved_leave_on( wp_list_pluck( $erp_students, 'id' )
 <header class="erp-head">
 	<p class="erp-eyebrow">Attendance</p>
 	<h1><?php echo esc_html( $erp_class ? mags_erp_class_label( $erp_class ) : 'Mark attendance' ); ?></h1>
+	<?php if ( $erp_class && in_array( (int) $erp_class->id, $erp_standin, true ) ) : ?><p class="erp-head__meta"><span class="erp-chip erp-chip--blue">You stand in for this class on <?php echo esc_html( mags_erp_format_date( $erp_date, 'j M' ) ); ?></span></p><?php endif; ?>
 </header>
 
 <?php if ( ! $erp_classes ) : ?>

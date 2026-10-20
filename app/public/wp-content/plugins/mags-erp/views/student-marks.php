@@ -1,5 +1,5 @@
 <?php
-/** Student (and parent): the student's own marks in the exams whose results are published, with the report card. */
+/** Student (and parent): the student's own marks in the exams whose results are published, a graph of how they change, and the report card. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 $erp_student = mags_erp_get_student_by_user( $ctx['user']->ID );
@@ -17,6 +17,8 @@ $erp_exams = mags_erp_student_exams( $erp_student );
 <?php if ( ! $erp_exams ) : ?>
 	<p class="erp-card erp-empty">No exam results have been published yet.</p>
 <?php endif; ?>
+
+<?php mags_erp_print_progress( $erp_student ); ?>
 
 <?php foreach ( $erp_exams as $erp_exam ) : $erp_result = $erp_exam->result; ?>
 	<section class="erp-card" aria-labelledby="erp-exam-<?php echo esc_attr( $erp_exam->id ); ?>">

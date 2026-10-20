@@ -59,6 +59,25 @@
     });
   }
 
+  /* A second press while a form is still being sent would save it twice (two payments, two discounts). */
+  function initSendOnce() {
+    each('form[method="post"]', function (form) {
+      form.addEventListener('submit', function (event) {
+        if (event.defaultPrevented) {
+          return;
+        }
+        if (form.getAttribute('data-erp-sending')) {
+          event.preventDefault();
+          return;
+        }
+        form.setAttribute('data-erp-sending', '1');
+        window.setTimeout(function () {
+          form.removeAttribute('data-erp-sending');
+        }, 8000);
+      });
+    });
+  }
+
   function initCopy() {
     if (!navigator.clipboard || !navigator.clipboard.writeText) {
       return;
@@ -242,6 +261,7 @@
   initLogin();
   initPasswordToggles();
   initConfirms();
+  initSendOnce();
   initAsk();
   initCopy();
   initAutoSubmit();

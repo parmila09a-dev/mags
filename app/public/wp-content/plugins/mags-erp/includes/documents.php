@@ -4,9 +4,10 @@
  * fee receipts and ID cards.
  *
  * Each document is first put together as plain data. When every text in it can
- * be written with the PDF's built-in fonts it is sent as a PDF file; otherwise
- * (a name in Devanagari, for example) the same data opens as a print page that
- * the browser can print or save as PDF.
+ * be written with the PDF fonts (Helvetica, and Noto Sans Devanagari for Hindi
+ * and the rupee sign) it is sent as a PDF file; otherwise (a name in Tamil or
+ * Urdu, for example) the same data opens as a print page that the browser can
+ * print or save as PDF.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 

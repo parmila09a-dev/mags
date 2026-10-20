@@ -3,13 +3,16 @@
  * The report card download.
  *
  * The portal writes the PDF itself with the small writer below, so no library
- * has to be installed on the server. The writer knows A4 pages, text in
- * Helvetica (also wrapped into paragraphs), lines, boxes and JPEG photos. It
- * is used for the report card here and for certificates, fee receipts and ID
- * cards in their own files. The
- * built-in PDF fonts cover English and other Latin-script names; when a name
- * or subject is written in another script (for example Devanagari) the report
- * card opens as a print page instead, which the browser can save as a PDF.
+ * has to be installed on the server. The writer knows A4 pages, text (also
+ * wrapped into paragraphs), lines, boxes and JPEG photos. It is used for the
+ * report card here and for certificates, fee receipts and ID cards in their
+ * own files.
+ *
+ * English text is written in Helvetica. Hindi (Devanagari) text and the rupee
+ * sign are written with the Noto Sans Devanagari font from assets/fonts/,
+ * shaped and embedded by MAGS_ERP_Font (includes/pdf-font.php). Only a text in
+ * a script neither font has (Tamil or Urdu, for example) makes a document open
+ * as a print page instead, which the browser can save as a PDF.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -25,36 +28,99 @@ class MAGS_ERP_PDF {
 
 	private $pages  = array();
 	private $images = array();
+	/** Glyphs used from the embedded fonts: 0 regular, 1 bold => glyph => text, for the font copy and copy-and-paste. */
+	private $used = array( array(), array() );
 
 	public function add_page() {
 		$this->pages[] = '';
 	}
 
-	/** True when every character of the text exists in the PDF's built-in fonts. */
+	/** The embedded font for Hindi and the rupee sign (regular or bold), or null when its file is missing. */
+	public static function unicode_font( $bold ) {
+		$file = MAGS_ERP_PATH . 'assets/fonts/NotoSansDevanagari-' . ( $bold ? 'Bold' : 'Regular' ) . '.ttf';
+		return MAGS_ERP_Font::load( (string) apply_filters( 'mags_erp_pdf_font', $file, (bool) $bold ) );
+	}
+
+	/** True for a character that Helvetica has (Windows-1252). */
+	private static function is_latin( $char ) {
+		static $known = array();
+		if ( ! isset( $known[ $char ] ) ) {
+			$known[ $char ] = 1 === strlen( $char ) ? ord( $char ) >= 32 : ( '?' !== mb_convert_encoding( $char, 'Windows-1252', 'UTF-8' ) );
+		}
+		return $known[ $char ];
+	}
+
+	/**
+	 * A text cut into runs for the two fonts: list of array( embedded font?, text ).
+	 * Spaces stay in Helvetica, so "राहुल शर्मा" is three runs.
+	 */
+	private static function runs( $text ) {
+		$runs = array();
+		foreach ( preg_split( '//u', preg_replace( '/\s+/u', ' ', (string) $text ), -1, PREG_SPLIT_NO_EMPTY ) as $char ) {
+			$unicode = ! self::is_latin( $char );
+			$last    = count( $runs ) - 1;
+			if ( $last >= 0 && $runs[ $last ][0] === $unicode ) {
+				$runs[ $last ][1] .= $char;
+			} else {
+				$runs[] = array( $unicode, $char );
+			}
+		}
+		return $runs;
+	}
+
+	/** True when every character of the text can be written: by Helvetica or by the embedded font. */
 	public static function can_write( $text ) {
 		$text = (string) $text;
 		if ( ! preg_match( '/[^\x20-\x7E]/', $text ) ) { return true; }
-		return mb_convert_encoding( mb_convert_encoding( $text, 'Windows-1252', 'UTF-8' ), 'UTF-8', 'Windows-1252' ) === $text;
+		foreach ( self::runs( $text ) as $run ) {
+			if ( ! $run[0] ) { continue; }
+			foreach ( array( false, true ) as $bold ) {
+				$font = self::unicode_font( $bold );
+				if ( ! $font ) { return false; }
+				foreach ( preg_split( '//u', $run[1], -1, PREG_SPLIT_NO_EMPTY ) as $char ) {
+					if ( ! $font->has_char( mb_ord( $char, 'UTF-8' ) ) ) { return false; }
+				}
+			}
+		}
+		return true;
 	}
 
 	private static function encode( $text ) {
 		return mb_convert_encoding( preg_replace( '/\s+/u', ' ', (string) $text ), 'Windows-1252', 'UTF-8' );
 	}
 
-	public function text_width( $text, $size, $bold = false ) {
+	/** Width of one run in points. */
+	private function run_width( $run, $size, $bold ) {
+		if ( $run[0] ) {
+			$font = self::unicode_font( $bold );
+			return $font ? $font->width( $run[1] ) * $size / $font->units_per_em : 0;
+		}
 		$units = 0;
-		foreach ( unpack( 'C*', self::encode( $text ) ) as $byte ) {
+		foreach ( unpack( 'C*', self::encode( $run[1] ) ) as $byte ) {
 			$units += $byte >= 32 && $byte <= 126 ? self::$widths[ $bold ? 1 : 0 ][ $byte - 32 ] : ( 133 === $byte ? 1000 : ( $bold ? 611 : 556 ) );
 		}
 		return $units * $size / 1000;
 	}
 
-	/** Shorten a text with "…" until it fits the width. */
+	public function text_width( $text, $size, $bold = false ) {
+		$width = 0;
+		foreach ( self::runs( $text ) as $run ) { $width += $this->run_width( $run, $size, $bold ); }
+		return $width;
+	}
+
+	/** Shorten a text with "…" until it fits the width. Hindi is cut between letters, never inside one. */
 	public function fit( $text, $size, $bold, $max_width ) {
 		$text = (string) $text;
 		if ( $this->text_width( $text, $size, $bold ) <= $max_width ) { return $text; }
-		while ( mb_strlen( $text ) > 1 && $this->text_width( $text . '…', $size, $bold ) > $max_width ) { $text = mb_substr( $text, 0, -1 ); }
-		return rtrim( $text ) . '…';
+		$parts = preg_split( '/(\X)/u', $text, -1, PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY ) ?: array( $text );
+		$cut   = static function ( $count ) use ( $parts ) { return preg_replace( '/[\x{094D}\x{200C}\x{200D}]+$/u', '', rtrim( implode( '', array_slice( $parts, 0, $count ) ) ) ); };
+		$low   = 1;
+		$high  = count( $parts );
+		while ( $low < $high ) {
+			$mid = intdiv( $low + $high + 1, 2 );
+			if ( $this->text_width( $cut( $mid ) . '…', $size, $bold ) <= $max_width ) { $low = $mid; } else { $high = $mid - 1; }
+		}
+		return $cut( $low ) . '…';
 	}
 
 	private static function number( $value ) {
@@ -72,10 +138,52 @@ class MAGS_ERP_PDF {
 
 	/** Write one line of text. $y is the baseline measured from the top of the page; $align is L, C or R around $x. */
 	public function text( $x, $y, $text, $size = 10, $bold = false, $align = 'L', $rgb = array( 0.157, 0.157, 0.314 ) ) {
-		$width = 'L' === $align ? 0 : $this->text_width( $text, $size, $bold );
-		$x    -= 'R' === $align ? $width : ( 'C' === $align ? $width / 2 : 0 );
-		$bytes = strtr( self::encode( $text ), array( '\\' => '\\\\', '(' => '\\(', ')' => '\\)' ) );
-		$this->add( 'BT /F' . ( $bold ? 2 : 1 ) . ' ' . self::number( $size ) . ' Tf ' . self::colour( $rgb, 'rg' ) . ' ' . self::number( $x ) . ' ' . self::number( self::HEIGHT - $y ) . ' Td (' . $bytes . ') Tj ET' );
+		$runs  = self::runs( $text );
+		$width = 0;
+		if ( 'L' !== $align ) {
+			foreach ( $runs as $run ) { $width += $this->run_width( $run, $size, $bold ); }
+		}
+		$x -= 'R' === $align ? $width : ( 'C' === $align ? $width / 2 : 0 );
+		foreach ( $runs as $run ) {
+			if ( $run[0] ) {
+				$this->glyph_run( $x, self::HEIGHT - $y, $run[1], $size, $bold, $rgb );
+			} else {
+				$bytes = strtr( self::encode( $run[1] ), array( '\\' => '\\\\', '(' => '\\(', ')' => '\\)' ) );
+				$this->add( 'BT /F' . ( $bold ? 2 : 1 ) . ' ' . self::number( $size ) . ' Tf ' . self::colour( $rgb, 'rg' ) . ' ' . self::number( $x ) . ' ' . self::number( self::HEIGHT - $y ) . ' Td (' . $bytes . ') Tj ET' );
+			}
+			$x += $this->run_width( $run, $size, $bold );
+		}
+	}
+
+	/**
+	 * Write a run with the embedded font, glyph by glyph where the shaping moved
+	 * a glyph (vowel signs, reph). $baseline is in PDF coordinates. The run is
+	 * marked with its real text, so searching and copying the PDF find the name.
+	 */
+	private function glyph_run( $x, $baseline, $text, $size, $bold, $rgb ) {
+		$font = self::unicode_font( $bold );
+		if ( ! $font ) { return; }
+		$scale  = $size / $font->units_per_em;
+		$ops    = '/Span << /ActualText <FEFF' . strtoupper( bin2hex( mb_convert_encoding( $text, 'UTF-16BE', 'UTF-8' ) ) ) . '> >> BDC BT /F' . ( $bold ? 4 : 3 ) . ' ' . self::number( $size ) . ' Tf ' . self::colour( $rgb, 'rg' );
+		$hex    = '';
+		$expect = null;
+		$pen    = $x;
+		foreach ( $font->shape( $text ) as $glyph ) {
+			if ( ! $glyph['hide'] ) {
+				$gx = $pen + $glyph['xo'] * $scale;
+				$gy = $baseline + $glyph['yo'] * $scale;
+				if ( ! isset( $this->used[ $bold ? 1 : 0 ][ $glyph['g'] ] ) || '' === $this->used[ $bold ? 1 : 0 ][ $glyph['g'] ] ) { $this->used[ $bold ? 1 : 0 ][ $glyph['g'] ] = $glyph['t']; }
+				if ( null === $expect || abs( $gx - $expect[0] ) > 0.001 || abs( $gy - $expect[1] ) > 0.001 ) {
+					if ( '' !== $hex ) { $ops .= ' <' . $hex . '> Tj'; }
+					$ops .= ' 1 0 0 1 ' . self::number( $gx ) . ' ' . self::number( $gy ) . ' Tm';
+					$hex  = '';
+				}
+				$hex   .= sprintf( '%04X', $glyph['g'] );
+				$expect = array( $gx + $font->advance( $glyph['g'] ) * $scale, $gy );
+			}
+			$pen += $glyph['xa'] * $scale;
+		}
+		$this->add( $ops . ( '' !== $hex ? ' <' . $hex . '> Tj' : '' ) . ' ET EMC' );
 	}
 
 	public function line( $x1, $y1, $x2, $y2, $width = 0.6, $rgb = array( 0.78, 0.8, 0.88 ) ) {
@@ -148,6 +256,36 @@ class MAGS_ERP_PDF {
 		return true;
 	}
 
+	/** PDF objects of one embedded font, numbered from $first: the font dictionary is $first. */
+	private function font_objects( $bold, $first ) {
+		$font  = self::unicode_font( $bold );
+		$used  = $this->used[ $bold ? 1 : 0 ];
+		ksort( $used );
+		$em    = 1000 / $font->units_per_em;
+		$tag   = strtoupper( substr( preg_replace( '/[^a-f]/', '', md5( implode( ',', array_keys( $used ) ) . $font->name ) . 'abcdef' ), 0, 6 ) );
+		$name  = '/' . $tag . '+' . $font->name;
+		$file  = $font->subset( array_keys( $used ) );
+		$pack  = function_exists( 'gzcompress' ) ? gzcompress( $file ) : false;
+		$widths = '';
+		$cmap   = array();
+		foreach ( $used as $glyph => $text ) {
+			$widths .= ' ' . $glyph . ' [' . round( $font->advance( $glyph ) * $em ) . ']';
+			if ( '' !== $text ) { $cmap[] = sprintf( '<%04X> <%s>', $glyph, strtoupper( bin2hex( mb_convert_encoding( $text, 'UTF-16BE', 'UTF-8' ) ) ) ); }
+		}
+		$unicode = "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n";
+		foreach ( array_chunk( $cmap, 100 ) as $chunk ) { $unicode .= count( $chunk ) . " beginbfchar\n" . implode( "\n", $chunk ) . "\nendbfchar\n"; }
+		$unicode .= "endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend";
+		$box = array_map( static function ( $value ) use ( $em ) { return round( $value * $em ); }, $font->bbox );
+
+		return array(
+			$first     => '<< /Type /Font /Subtype /Type0 /BaseFont ' . $name . ' /Encoding /Identity-H /DescendantFonts [' . ( $first + 1 ) . ' 0 R] /ToUnicode ' . ( $first + 4 ) . ' 0 R >>',
+			$first + 1 => '<< /Type /Font /Subtype /CIDFontType2 /BaseFont ' . $name . ' /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor ' . ( $first + 2 ) . ' 0 R /DW 0 /W [' . $widths . ' ] /CIDToGIDMap /Identity >>',
+			$first + 2 => '<< /Type /FontDescriptor /FontName ' . $name . ' /Flags 4 /FontBBox [' . implode( ' ', $box ) . '] /ItalicAngle 0 /Ascent ' . round( $font->ascent * $em ) . ' /Descent ' . round( $font->descent * $em ) . ' /CapHeight ' . round( $font->cap_height * $em ) . ' /StemV ' . ( $bold ? 120 : 80 ) . ' /FontFile2 ' . ( $first + 3 ) . ' 0 R >>',
+			$first + 3 => '<< /Length ' . strlen( false !== $pack ? $pack : $file ) . ' /Length1 ' . strlen( $file ) . ( false !== $pack ? ' /Filter /FlateDecode' : '' ) . " >>\nstream\n" . ( false !== $pack ? $pack : $file ) . "\nendstream",
+			$first + 4 => '<< /Length ' . strlen( $unicode ) . " >>\nstream\n" . $unicode . "\nendstream",
+		);
+	}
+
 	/** The finished PDF file as a string of bytes. */
 	public function output( $title ) {
 		$objects = array(
@@ -164,10 +302,17 @@ class MAGS_ERP_PDF {
 			$objects[ $image_no ] = '<< /Type /XObject /Subtype /Image /Width ' . $image['width'] . ' /Height ' . $image['height'] . ' /ColorSpace ' . $image['space'] . ' /BitsPerComponent 8 /Filter /DCTDecode /Length ' . strlen( $image['data'] ) . " >>\nstream\n" . $image['data'] . "\nendstream";
 			$image_no++;
 		}
+		$fonts = ' /F1 3 0 R /F2 4 0 R';
+		foreach ( array( 0, 1 ) as $bold ) {
+			if ( ! $this->used[ $bold ] ) { continue; }
+			$fonts   .= ' /F' . ( 3 + $bold ) . ' ' . $image_no . ' 0 R';
+			$objects += $this->font_objects( (bool) $bold, $image_no );
+			$image_no += 5;
+		}
 		foreach ( $this->pages as $index => $content ) {
 			$page_no               = 6 + 2 * $index;
 			$kids[]                = $page_no . ' 0 R';
-			$objects[ $page_no ]     = '<< /Type /Page /Parent 2 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R >>' . ( $xobjects ? ' /XObject <<' . $xobjects . ' >>' : '' ) . ' >> /Contents ' . ( $page_no + 1 ) . ' 0 R >>';
+			$objects[ $page_no ]     = '<< /Type /Page /Parent 2 0 R /Resources << /Font <<' . $fonts . ' >>' . ( $xobjects ? ' /XObject <<' . $xobjects . ' >>' : '' ) . ' >> /Contents ' . ( $page_no + 1 ) . ' 0 R >>';
 			$objects[ $page_no + 1 ] = '<< /Length ' . strlen( $content ) . " >>\nstream\n" . $content . 'endstream';
 		}
 		$objects[2] = '<< /Type /Pages /Kids [' . implode( ' ', $kids ) . '] /Count ' . count( $kids ) . ' /MediaBox [0 0 ' . self::WIDTH . ' ' . self::HEIGHT . '] >>';

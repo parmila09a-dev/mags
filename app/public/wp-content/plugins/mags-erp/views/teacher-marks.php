@@ -82,12 +82,13 @@ foreach ( mags_erp_get_exams() as $erp_item ) {
 				<li class="erp-row">
 					<div class="erp-row__main">
 						<strong><?php echo esc_html( $erp_row->subject_name ); ?></strong>
-						<span><?php echo esc_html( $erp_row->class_label ); ?> · out of <?php echo esc_html( mags_erp_format_marks( $erp_row->max_marks ) ); ?><?php if ( $erp_row->exam_date ) : ?> · <?php echo esc_html( mags_erp_format_date( $erp_row->exam_date, 'j M Y' ) ); ?><?php endif; ?></span>
+						<span><?php echo esc_html( $erp_row->class_label ); ?> · out of <?php echo esc_html( mags_erp_format_marks( $erp_row->max_marks ) ); ?><?php if ( $erp_row->exam_date ) : ?> · <?php echo esc_html( mags_erp_format_date( $erp_row->exam_date, 'D j M Y' ) ); ?><?php endif; ?><?php if ( '' !== mags_erp_paper_time( $erp_row ) ) : ?> · <?php echo esc_html( mags_erp_paper_time( $erp_row ) ); ?><?php endif; ?></span>
 						<span class="erp-row__chips"><?php if ( ! $erp_total ) : ?><span class="erp-chip">No students yet</span><?php elseif ( $erp_left ) : ?><span class="erp-chip erp-chip--orange"><?php echo esc_html( $erp_left ); ?> of <?php echo esc_html( $erp_total ); ?> to enter</span><?php else : ?><span class="erp-chip erp-chip--green">All <?php echo esc_html( $erp_total ); ?> entered</span><?php endif; ?></span>
 					</div>
 					<div class="erp-row__actions"><a class="erp-btn <?php echo $erp_left && ! $erp_item->published_at ? 'erp-btn--orange' : 'erp-btn--ghost'; ?> erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'marks', array( 'paper' => (int) $erp_row->id ) ) ); ?>"><?php echo $erp_item->published_at ? 'See marks' : ( $erp_left ? 'Enter marks' : 'Change marks' ); ?><span class="erp-sr"> for <?php echo esc_html( $erp_row->subject_name . ', ' . $erp_row->class_label ); ?></span></a></div>
 				</li>
 			<?php endforeach; ?>
 		</ul>
+		<p class="erp-removed"><?php foreach ( array_unique( wp_list_pluck( $erp_item->papers, 'class_label', 'class_id' ) ) as $erp_ds_class => $erp_ds_label ) : ?><a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'date-sheet', array( 'exam' => (int) $erp_item->id, 'class' => (int) $erp_ds_class ) ) ); ?>">Date sheet · <?php echo esc_html( $erp_ds_label ); ?></a> <?php endforeach; ?></p>
 	</section>
 <?php endforeach; ?>

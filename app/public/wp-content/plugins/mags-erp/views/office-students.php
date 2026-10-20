@@ -31,7 +31,7 @@ list( , $erp_removed_total ) = $erp_show_removed ? array( null, $erp_total ) : m
 <?php if ( $erp_show_removed ) : ?>
 	<section aria-labelledby="erp-removed-title">
 		<h2 id="erp-removed-title" class="erp-section-title">Removed <span class="erp-count"><?php echo esc_html( number_format_i18n( $erp_total ) ); ?></span></h2>
-		<p class="erp-hint erp-hint--lead">A removed student cannot sign in and is not in the class lists. Attendance, homework, marks, fees and questions are all kept. <a href="<?php echo esc_url( mags_erp_url( 'students' ) ); ?>">← Back to students</a></p>
+		<p class="erp-hint erp-hint--lead">A removed student cannot sign in and is not in the class lists. A student who got a transfer certificate is listed here as left. Attendance, homework, marks, fees and questions are all kept. <a href="<?php echo esc_url( mags_erp_url( 'students' ) ); ?>">← Back to students</a></p>
 		<form class="erp-filter" method="get" action="<?php echo esc_url( mags_erp_url( 'students' ) ); ?>">
 			<?php mags_erp_route_field( 'students' ); ?>
 			<input type="hidden" name="removed" value="1">
@@ -46,7 +46,7 @@ list( , $erp_removed_total ) = $erp_show_removed ? array( null, $erp_total ) : m
 					<li class="erp-row erp-row--off">
 						<div class="erp-row__main">
 							<strong><?php echo esc_html( $erp_student->full_name ); ?></strong>
-							<span>Adm. no. <?php echo esc_html( $erp_student->admission_no ); ?> · <?php echo esc_html( $erp_all_labels[ (int) $erp_student->class_id ] ?? 'No class' ); ?> · removed <?php echo esc_html( mags_erp_format_datetime( $erp_student->hidden_at, 'j M Y' ) ); ?></span>
+							<span>Adm. no. <?php echo esc_html( $erp_student->admission_no ); ?> · <?php echo esc_html( $erp_all_labels[ (int) $erp_student->class_id ] ?? 'No class' ); ?> · <?php echo esc_html( $erp_student->left_on ? 'left school ' . mags_erp_format_date( $erp_student->left_on, 'j M Y' ) . ( $erp_student->left_certificate_id ? ' (TC)' : '' ) : 'removed ' . mags_erp_format_datetime( $erp_student->hidden_at, 'j M Y' ) ); ?></span>
 						</div>
 						<div class="erp-row__actions">
 							<a class="erp-btn erp-btn--ghost erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'profile', array( 'student' => (int) $erp_student->id ) ) ); ?>">Profile</a>

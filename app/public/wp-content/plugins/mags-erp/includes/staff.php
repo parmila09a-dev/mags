@@ -5,8 +5,9 @@
  * asks for leave and the office approves it or not.
  *
  * The rules are the same as for students: one mark per teacher per day, no
- * marking on a holiday of the school calendar or in the future, holidays are
- * not counted in the percentage, and an answer to a leave request is final.
+ * marking on a holiday of the school calendar, on Sunday or in the future,
+ * holidays are not counted in the percentage, and an answer to a leave request
+ * is final.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 

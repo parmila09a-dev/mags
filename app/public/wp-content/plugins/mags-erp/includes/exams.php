@@ -91,10 +91,10 @@ function mags_erp_get_paper( $paper_id ) {
 
 /**
  * Add one subject as a paper for each of the chosen classes. A paper that
- * already exists gets the new maximum marks and date; a removed one comes back.
+ * already exists gets the new maximum marks, date and time; a removed one comes back.
  * Returns array( added, updated, list of problems ).
  */
-function mags_erp_save_papers( $exam_id, $class_ids, $subject_id, $max_marks, $exam_date ) {
+function mags_erp_save_papers( $exam_id, $class_ids, $subject_id, $max_marks, $exam_date, $start_time = '', $end_time = '' ) {
 	global $wpdb;
 	$table    = mags_erp_table( 'exam_papers' );
 	$added    = 0;
@@ -103,10 +103,10 @@ function mags_erp_save_papers( $exam_id, $class_ids, $subject_id, $max_marks, $e
 	foreach ( array_unique( array_map( 'absint', (array) $class_ids ) ) as $class_id ) {
 		$class = mags_erp_get_class( $class_id );
 		if ( ! $class ) { continue; }
-		$data     = array( 'max_marks' => $max_marks, 'exam_date' => $exam_date ?: null );
+		$data     = array( 'max_marks' => $max_marks, 'exam_date' => $exam_date ?: null, 'start_time' => (string) $start_time, 'end_time' => (string) $end_time );
 		$existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE exam_id = %d AND class_id = %d AND subject_id = %d", $exam_id, $class_id, $subject_id ) );
 		if ( ! $existing ) {
-			if ( $wpdb->insert( $table, array_merge( $data, array( 'exam_id' => $exam_id, 'class_id' => $class_id, 'subject_id' => $subject_id, 'created_at' => current_time( 'mysql' ) ) ), array( '%f', '%s', '%d', '%d', '%d', '%s' ) ) ) {
+			if ( $wpdb->insert( $table, array_merge( $data, array( 'exam_id' => $exam_id, 'class_id' => $class_id, 'subject_id' => $subject_id, 'created_at' => current_time( 'mysql' ) ) ), array( '%f', '%s', '%s', '%s', '%d', '%d', '%d', '%s' ) ) ) {
 				$added++;
 			} else {
 				$problems[] = sprintf( '%s: the paper could not be saved. Please try again.', mags_erp_class_label( $class ) );
@@ -118,7 +118,7 @@ function mags_erp_save_papers( $exam_id, $class_ids, $subject_id, $max_marks, $e
 			$problems[] = sprintf( '%s: a student already has %s marks, so the maximum cannot be %s.', mags_erp_class_label( $class ), mags_erp_format_marks( $highest ), mags_erp_format_marks( $max_marks ) );
 			continue;
 		}
-		$wpdb->update( $table, $data, array( 'id' => (int) $existing->id ), array( '%f', '%s' ), array( '%d' ) );
+		$wpdb->update( $table, $data, array( 'id' => (int) $existing->id ), array( '%f', '%s', '%s', '%s' ), array( '%d' ) );
 		if ( $existing->hidden_at ) { mags_erp_unhide( 'exam_papers', (int) $existing->id ); }
 		$updated++;
 	}
@@ -215,6 +215,28 @@ function mags_erp_student_exams( $student ) {
 	return $exams;
 }
 
+/** "9:00 am – 12:00 pm", "9:00 am" or '' for the time of a paper. */
+function mags_erp_paper_time( $paper ) {
+	$start = mags_erp_format_time( (string) ( $paper->start_time ?? '' ) );
+	$end   = mags_erp_format_time( (string) ( $paper->end_time ?? '' ) );
+	return '' === $start ? '' : $start . ( '' !== $end ? ' – ' . $end : '' );
+}
+
+/** The papers of one class in an exam in the order they are written: by date, then time, then subject. */
+function mags_erp_datesheet( $exam_id, $class_id ) {
+	$papers = mags_erp_exam_papers( (int) $exam_id, array( (int) $class_id ) );
+	usort(
+		$papers,
+		static function ( $a, $b ) {
+			$da = (string) $a->exam_date;
+			$db = (string) $b->exam_date;
+			if ( $da !== $db ) { return '' === $da ? 1 : ( '' === $db ? -1 : strcmp( $da, $db ) ); }
+			return strcmp( (string) $a->start_time, (string) $b->start_time ) ?: strnatcasecmp( $a->subject_name, $b->subject_name );
+		}
+	);
+	return $papers;
+}
+
 /** "AB" for absent, the marks, or "–" when nothing is entered. */
 function mags_erp_marks_text( $row ) {
 	if ( ! empty( $row->absent ) ) { return 'AB'; }
@@ -261,8 +283,13 @@ function mags_erp_action_save_papers() {
 	$max_marks = mags_erp_parse_marks( mags_erp_post_text( 'max_marks' ), null );
 	if ( is_wp_error( $max_marks ) || null === $max_marks || $max_marks <= 0 ) { mags_erp_flash( 'error', 'Enter the maximum marks as a number above 0.' ); return $back; }
 	if ( '' !== $date && ! mags_erp_valid_date( $date ) ) { mags_erp_flash( 'error', 'The paper date is not a valid date.' ); return $back; }
+	$start = mags_erp_post_text( 'start_time' );
+	$end   = mags_erp_post_text( 'end_time' );
+	if ( ( '' !== $start && ! mags_erp_valid_time( $start ) ) || ( '' !== $end && ! mags_erp_valid_time( $end ) ) ) { mags_erp_flash( 'error', 'Enter the time of the paper like 09:00, or leave it empty.' ); return $back; }
+	if ( '' !== $start && '' !== $end && $end <= $start ) { mags_erp_flash( 'error', 'The paper must end after it starts.' ); return $back; }
+	if ( '' === $start && '' !== $end ) { mags_erp_flash( 'error', 'Enter the start time too, or leave both times empty.' ); return $back; }
 
-	list( $added, $updated, $problems ) = mags_erp_save_papers( (int) $exam->id, $classes, (int) $subject->id, $max_marks, $date );
+	list( $added, $updated, $problems ) = mags_erp_save_papers( (int) $exam->id, $classes, (int) $subject->id, $max_marks, $date, $start, $end );
 	$message = sprintf( '%s: %d paper(s) added, %d updated.', $subject->name, $added, $updated );
 	mags_erp_flash( $problems ? 'error' : 'success', $problems ? $message . ' ' . implode( ' ', $problems ) : $message );
 	return $back;
@@ -294,6 +321,7 @@ function mags_erp_action_publish_exam() {
 
 	if ( ! mags_erp_post_int( 'publish' ) ) {
 		mags_erp_set_exam_published( (int) $exam->id, false );
+		mags_erp_cancel_result_mail( (int) $exam->id );
 		mags_erp_flash( 'success', 'The exam is open for marks again. Students cannot see the results until you publish them.' );
 		return $back;
 	}
@@ -303,7 +331,8 @@ function mags_erp_action_publish_exam() {
 	$missing = 0;
 	foreach ( $papers as $paper ) { if ( (int) $paper->entered_count < (int) ( $counts[ (int) $paper->class_id ] ?? 0 ) ) { $missing++; } }
 	mags_erp_set_exam_published( (int) $exam->id, true );
-	mags_erp_flash( 'success', 'Results published. Students can now see their marks and download the report card.' . ( $missing ? sprintf( ' Note: %d paper(s) still have marks missing; those show as “–”.', $missing ) : '' ) );
+	$mailed = mags_erp_notify_results( mags_erp_get_exam( (int) $exam->id ) );
+	mags_erp_flash( 'success', 'Results published. Students can now see their marks and download the report card.' . ( $mailed ? ' ' . sprintf( _n( 'An email goes to %d parent.', 'Emails go to %d parents.', $mailed, 'mags-erp' ), $mailed ) : '' ) . ( $missing ? sprintf( ' Note: %d paper(s) still have marks missing; those show as “–”.', $missing ) : '' ) );
 	return $back;
 }
 

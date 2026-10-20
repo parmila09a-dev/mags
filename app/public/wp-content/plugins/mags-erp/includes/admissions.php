@@ -2,7 +2,9 @@
 /**
  * Admission form. Parents fill the form at /portal/admission/ without a login.
  * The office reads each application and accepts it or not. Accepting makes the
- * student, with a portal login and a profile filled from the form.
+ * student, with a portal login and a profile filled from the form. Parents see
+ * where their form stands at /portal/admission-status/ with the application
+ * number and the phone number they wrote on the form.
  *
  * The form is the only portal screen that anyone can post to, so it is closed
  * until the office opens it, it limits how many forms one connection and the
@@ -20,8 +22,16 @@ define( 'MAGS_ERP_ADMISSIONS_PER_HOUR', 5 );
 define( 'MAGS_ERP_ADMISSION_TRIES_PER_HOUR', 20 );
 define( 'MAGS_ERP_ADMISSIONS_PER_DAY', 300 );
 
-/** Largest document a parent may send with the form. */
+/** Largest document a parent may send with the form (less when the office sets a lower file limit). */
 define( 'MAGS_ERP_ADMISSION_DOCUMENT_BYTES', 5 * MB_IN_BYTES );
+
+/** Status checks one connection may make in an hour, so application numbers cannot be tried one after another. */
+define( 'MAGS_ERP_ADMISSION_CHECKS_PER_HOUR', 20 );
+
+/** Largest document a parent may send now: 5 MB, or the office's file limit when that is lower. */
+function mags_erp_admission_document_bytes() {
+	return (int) min( MAGS_ERP_ADMISSION_DOCUMENT_BYTES, mags_erp_max_file_size() );
+}
 
 /** array( open, note ): whether the form takes applications and the line shown above it. */
 function mags_erp_admission_settings() {
@@ -143,8 +153,8 @@ function mags_erp_validate_admission( array $v ) {
 function mags_erp_admission_document_problem( $sent ) {
 	$allowed = array( 'pdf' => 'application/pdf', 'jpg|jpeg' => 'image/jpeg', 'png' => 'image/png' );
 	$wrong   = 'The document must be a PDF, JPG or PNG file.';
-	if ( UPLOAD_ERR_OK !== (int) ( $sent['error'] ?? UPLOAD_ERR_NO_FILE ) || empty( $sent['tmp_name'] ) || ! is_string( $sent['tmp_name'] ) || ! is_uploaded_file( $sent['tmp_name'] ) ) { return in_array( (int) ( $sent['error'] ?? 0 ), array( UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE ), true ) ? sprintf( 'The document is too large. The limit is %s.', size_format( MAGS_ERP_ADMISSION_DOCUMENT_BYTES ) ) : 'The document could not be uploaded. Please try again.'; }
-	if ( filesize( $sent['tmp_name'] ) > MAGS_ERP_ADMISSION_DOCUMENT_BYTES ) { return sprintf( 'The document is too large. The limit is %s.', size_format( MAGS_ERP_ADMISSION_DOCUMENT_BYTES ) ); }
+	if ( UPLOAD_ERR_OK !== (int) ( $sent['error'] ?? UPLOAD_ERR_NO_FILE ) || empty( $sent['tmp_name'] ) || ! is_string( $sent['tmp_name'] ) || ! is_uploaded_file( $sent['tmp_name'] ) ) { return in_array( (int) ( $sent['error'] ?? 0 ), array( UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE ), true ) ? sprintf( 'The document is too large. The limit is %s.', size_format( mags_erp_admission_document_bytes() ) ) : 'The document could not be uploaded. Please try again.'; }
+	if ( filesize( $sent['tmp_name'] ) > mags_erp_admission_document_bytes() ) { return sprintf( 'The document is too large. The limit is %s.', size_format( mags_erp_admission_document_bytes() ) ); }
 	$check = wp_check_filetype_and_ext( $sent['tmp_name'], sanitize_file_name( wp_basename( (string) ( $sent['name'] ?? '' ) ) ), $allowed );
 	if ( empty( $check['type'] ) ) { return $wrong; }
 	if ( function_exists( 'finfo_open' ) ) {
@@ -249,6 +259,63 @@ function mags_erp_admission_screen() {
 	mags_erp_render( 'admission-form', $ctx );
 }
 
+/* ---------- Status of a form, for parents ---------- */
+
+/** The application number as a parent types it ("APP-00012", "app 12" or "12"), or 0. */
+function mags_erp_parse_admission_no( $text ) {
+	return preg_match( '~^\s*(?:APP)?[\s/#-]*0*(\d{1,9})\s*$~i', (string) $text, $match ) ? (int) $match[1] : 0;
+}
+
+/**
+ * The application with this number, when the phone number also matches the
+ * one on the form (the last ten digits, so +91 may be typed or not). A removed
+ * application is not found.
+ */
+function mags_erp_find_admission_for_parent( $number, $phone ) {
+	$admission = mags_erp_get_admission( mags_erp_parse_admission_no( $number ) );
+	$typed     = mags_erp_clean_phone( $phone );
+	if ( ! $admission || '' === $typed ) { return null; }
+	$last_ten = static function ( $text ) { return substr( preg_replace( '/\D+/', '', (string) $text ), -10 ); };
+	return hash_equals( $last_ten( $admission->phone ), $last_ten( $typed ) ) ? $admission : null;
+}
+
+/** What the status page tells the parent: array( label, chip class, what happens next ). The office's own notes are never shown. */
+function mags_erp_admission_status_for_parent( $admission ) {
+	if ( 'approved' === $admission->status ) {
+		$student = (int) $admission->student_id ? mags_erp_get_student( (int) $admission->student_id ) : null;
+		$class   = $student ? ( mags_erp_all_class_labels()[ (int) $student->class_id ] ?? '' ) : '';
+		return array( 'Accepted', 'erp-chip--green', 'The admission is accepted' . ( '' !== $class ? ' in ' . $class : '' ) . '. Please visit the school office to complete the admission. The office gives you the login for the school portal.' );
+	}
+	if ( 'rejected' === $admission->status ) {
+		return array( 'Not accepted', 'erp-chip--status-A', 'The school could not accept this application. Please contact the school office if you have a question.' );
+	}
+	return array( 'Received, waiting to be read', 'erp-chip--orange', 'The school office has your form and will read it. The office will call you on the phone number you gave.' );
+}
+
+/** /portal/admission-status/ : a parent types the application number and the phone number and sees the status. Open to everyone. */
+function mags_erp_admission_status_screen() {
+	$state = array( 'number' => mags_erp_get_text( 'no' ), 'phone' => '', 'error' => '', 'found' => null );
+	if ( 'POST' === ( $_SERVER['REQUEST_METHOD'] ?? '' ) ) {
+		$state['number'] = mags_erp_post_text( 'application_no' );
+		$state['phone']  = mags_erp_post_text( 'phone' );
+		$key             = 'mags_erp_adm_check_' . md5( mags_erp_client_ip() );
+		$checks          = (int) get_transient( $key );
+		if ( ! wp_verify_nonce( mags_erp_post_text( '_mags_erp_nonce' ), 'mags_erp_admission_status' ) ) {
+			$state['error'] = 'This page was open for too long. Please press Check status again.';
+		} elseif ( '' === $state['number'] || '' === $state['phone'] ) {
+			$state['error'] = 'Enter the application number and the phone number.';
+		} elseif ( $checks >= MAGS_ERP_ADMISSION_CHECKS_PER_HOUR ) {
+			$state['error'] = 'Too many checks have been made from here. Please try again after one hour, or call the school office.';
+		} else {
+			set_transient( $key, $checks + 1, HOUR_IN_SECONDS );
+			$state['found'] = mags_erp_find_admission_for_parent( $state['number'], $state['phone'] );
+			if ( ! $state['found'] ) { $state['error'] = 'No application matches this number and phone number. Please check both: the number was shown after the form was sent (for example APP-00012), and the phone number is the one written on the form.'; }
+		}
+	}
+	$ctx = array( 'route' => 'admission-status', 'role' => '', 'screens' => array(), 'badges' => array(), 'user' => wp_get_current_user(), 'title' => 'Admission form status', 'flash' => null, 'status' => $state );
+	mags_erp_render( 'admission-status', $ctx );
+}
+
 /* ---------- Office actions ---------- */
 
 function mags_erp_action_save_admission_settings() {
@@ -300,7 +367,7 @@ function mags_erp_action_decide_admission() {
 	$wpdb->update( $table, array( 'student_id' => $student_id ), array( 'id' => (int) $admission->id ), array( '%d' ), array( '%d' ) );
 	mags_erp_write_profile(
 		$student_id,
-		array( 'gender' => $admission->gender, 'dob' => $admission->dob ?: null, 'father_name' => $admission->father_name, 'mother_name' => $admission->mother_name, 'guardian_phone' => $admission->phone, 'emergency_phone' => $admission->phone, 'blood_group' => $admission->blood_group, 'address' => $admission->address, 'admitted_on' => mags_erp_today(), 'photo_file_id' => mags_erp_get_file( (int) $admission->photo_file_id ) ? (int) $admission->photo_file_id : 0 )
+		array( 'gender' => $admission->gender, 'dob' => $admission->dob ?: null, 'father_name' => $admission->father_name, 'mother_name' => $admission->mother_name, 'guardian_phone' => $admission->phone, 'parent_email' => is_email( $admission->email ) ? $admission->email : '', 'emergency_phone' => $admission->phone, 'blood_group' => $admission->blood_group, 'address' => $admission->address, 'admitted_on' => mags_erp_today(), 'photo_file_id' => mags_erp_get_file( (int) $admission->photo_file_id ) ? (int) $admission->photo_file_id : 0 )
 	);
 	if ( mags_erp_get_file( (int) $admission->document_file_id ) ) { mags_erp_add_student_document( $student_id, 'Sent with the admission form', (int) $admission->document_file_id, 0 ); }
 

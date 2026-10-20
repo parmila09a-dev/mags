@@ -20,6 +20,7 @@ $erp_facts   = array(
 	'Father’s name'      => $erp_profile->father_name,
 	'Mother’s name'      => $erp_profile->mother_name,
 	'Parent’s phone'     => $erp_profile->guardian_phone,
+	'Parent’s email'     => $erp_profile->parent_email,
 	'Emergency number'   => trim( $erp_profile->emergency_phone . ( '' !== $erp_profile->emergency_phone && '' !== $erp_profile->emergency_name ? ' (' . $erp_profile->emergency_name . ')' : '' ) ),
 	'Address'            => $erp_profile->address,
 	'Date of admission'  => $erp_profile->admitted_on ? mags_erp_format_date( $erp_profile->admitted_on ) : '',

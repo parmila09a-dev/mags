@@ -188,6 +188,32 @@ function mags_erp_get_text( $key ) {
 	return isset( $_GET[ $key ] ) && is_string( $_GET[ $key ] ) ? trim( sanitize_text_field( wp_unslash( $_GET[ $key ] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 }
 
+/* ---------- One save at a time ---------- */
+
+/**
+ * Wait for a database lock with this name, so that two people saving the same
+ * kind of record at the same moment are handled one after the other (MySQL
+ * GET_LOCK, released by mags_erp_unlock() or when the request ends). Returns
+ * false when another request held the lock for all of $wait seconds. A
+ * database without named locks (the SQLite drop-in) answers NULL; the save then
+ * goes ahead without the lock.
+ */
+function mags_erp_lock( $name, $wait = 10 ) {
+	global $wpdb;
+	return '0' !== (string) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, %d)', mags_erp_lock_name( $name ), $wait ) );
+}
+
+function mags_erp_unlock( $name ) {
+	global $wpdb;
+	$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', mags_erp_lock_name( $name ) ) );
+}
+
+/** Lock names are shared by every site on the database server, so they carry this site's database and table prefix. */
+function mags_erp_lock_name( $name ) {
+	global $wpdb;
+	return 'mags_erp_' . md5( DB_NAME . '|' . $wpdb->prefix . '|' . $name );
+}
+
 /* ---------- Hide instead of delete ---------- */
 
 /**
@@ -291,6 +317,17 @@ function mags_erp_route_field( $route ) {
 	if ( ! get_option( 'permalink_structure' ) ) { echo '<input type="hidden" name="mags_erp" value="' . esc_attr( $route ) . '">'; }
 }
 
+/**
+ * SQL condition that leaves out class homework, notes and notices made before
+ * the student came to their class by a promotion (students.class_since), so a
+ * child does not see the work of the year before in their new class. $column
+ * is written in the code, never taken from a request. '' when there is no date.
+ */
+function mags_erp_student_since_sql( $student, $column ) {
+	global $wpdb;
+	return $student && ! empty( $student->class_since ) ? $wpdb->prepare( " AND {$column} >= %s", $student->class_since ) : '';
+}
+
 /** The message every student screen shows when the login has no student record. */
 function mags_erp_no_student_record() {
 	echo '<section class="erp-card erp-empty"><h1>Student record not found</h1><p>Please contact the school office.</p></section>';
@@ -341,10 +378,10 @@ function mags_erp_date_words( $date ) {
 	return mags_erp_number_words( (int) substr( $date, 8, 2 ) ) . ' ' . mags_erp_format_date( $date, 'F' ) . ' ' . mags_erp_number_words( (int) substr( $date, 0, 4 ) );
 }
 
-/** Amount for a PDF, whose built-in fonts have no rupee sign: "Rs. 4,500" or "Rs. 4,500.50". */
+/** Amount for a PDF: "₹4,500" or "₹4,500.50" ("Rs. 4,500" only when the PDF font with the rupee sign is missing). */
 function mags_erp_money_plain( $amount ) {
 	$amount = round( (float) $amount, 2 );
-	return ( $amount < 0 ? '- ' : '' ) . 'Rs. ' . number_format( abs( $amount ), abs( $amount - round( $amount ) ) < 0.005 ? 0 : 2, '.', ',' );
+	return ( $amount < 0 ? '- ' : '' ) . ( MAGS_ERP_PDF::can_write( '₹' ) ? '₹' : 'Rs. ' ) . number_format( abs( $amount ), abs( $amount - round( $amount ) ) < 0.005 ? 0 : 2, '.', ',' );
 }
 
 /** A phone number as typed, cleaned to digits with an optional +. Returns '' when it is not 10 to 15 digits. */

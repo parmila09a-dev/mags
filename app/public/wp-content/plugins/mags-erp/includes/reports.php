@@ -1,7 +1,10 @@
 <?php
 /**
  * Office reports: attendance, exam marks and fees, on screen and as a CSV file
- * that opens in Excel. Reports list the students who are in a class now.
+ * that opens in Excel. The fees report lists the students who are in a class
+ * now. The attendance and marks reports of a class follow the class each mark
+ * was made in, so after the classes move up for a new session the reports of
+ * the year before still show the students who were in the class then.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -18,17 +21,37 @@ function mags_erp_report_range( $from, $to ) {
 }
 
 /**
+ * The students of a class report: those in the class now, then the students of
+ * $others (ids) who have moved to another class since, each with ->now_in and
+ * the roll number they had in this class.
+ */
+function mags_erp_report_students( $class_id, $others ) {
+	global $wpdb;
+	$students = mags_erp_class_students( $class_id );
+	$others   = array_diff( array_map( 'intval', (array) $others ), array_map( 'intval', wp_list_pluck( $students, 'id' ) ) );
+	if ( ! $others ) { return $students; }
+	$rolls = array();
+	foreach ( (array) $wpdb->get_results( $wpdb->prepare( 'SELECT student_id, roll_no FROM ' . mags_erp_table( 'class_history' ) . ' WHERE from_class_id = %d AND undone_at IS NULL ORDER BY moved_at, id', $class_id ) ) as $row ) { $rolls[ (int) $row->student_id ] = $row->roll_no; }
+	$labels = mags_erp_all_class_labels();
+	$moved  = (array) $wpdb->get_results( 'SELECT * FROM ' . mags_erp_table( 'students' ) . ' WHERE hidden_at IS NULL AND id IN (' . mags_erp_id_list( $others ) . ')' );
+	foreach ( $moved as $student ) {
+		$student->now_in  = $labels[ (int) $student->class_id ] ?? '';
+		$student->roll_no = $rolls[ (int) $student->id ] ?? '';
+	}
+	return array_merge( $students, mags_erp_natural_sort( $moved, array( 'roll_no', 'full_name' ) ) );
+}
+
+/**
  * Attendance of one class between two dates: one row per student with the
- * number of days present, absent and on leave and the percentage. Holidays are not counted.
+ * number of days present, absent and on leave and the percentage, counting the
+ * marks made in this class. Holidays are not counted.
  */
 function mags_erp_report_attendance( $class_id, $from, $to ) {
 	global $wpdb;
-	$students = mags_erp_class_students( $class_id );
-	$counts   = array();
-	if ( $students ) {
-		$rows = $wpdb->get_results( $wpdb->prepare( 'SELECT student_id, status, COUNT(*) AS total FROM ' . mags_erp_table( 'attendance' ) . ' WHERE att_date BETWEEN %s AND %s AND ' . mags_erp_not_holiday_sql( 'att_date' ) . ' AND student_id IN (' . mags_erp_id_list( wp_list_pluck( $students, 'id' ) ) . ') GROUP BY student_id, status', $from, $to ) );
-		foreach ( (array) $rows as $row ) { $counts[ (int) $row->student_id ][ $row->status ] = (int) $row->total; }
-	}
+	$counts = array();
+	$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT student_id, status, COUNT(*) AS total FROM ' . mags_erp_table( 'attendance' ) . ' WHERE class_id = %d AND att_date BETWEEN %s AND %s AND ' . mags_erp_not_holiday_sql( 'att_date' ) . ' GROUP BY student_id, status', $class_id, $from, $to ) );
+	foreach ( (array) $rows as $row ) { $counts[ (int) $row->student_id ][ $row->status ] = (int) $row->total; }
+	$students = mags_erp_report_students( $class_id, array_keys( $counts ) );
 	$report = array();
 	foreach ( $students as $student ) {
 		$own      = array_merge( array( 'P' => 0, 'A' => 0, 'L' => 0 ), $counts[ (int) $student->id ] ?? array() );
@@ -37,11 +60,11 @@ function mags_erp_report_attendance( $class_id, $from, $to ) {
 	return $report;
 }
 
-/** Attendance of every class between two dates: one row per class. */
+/** Attendance of every class between two dates: one row per class, counting the marks made in that class. */
 function mags_erp_report_attendance_classes( $from, $to ) {
 	global $wpdb;
 	$counts = array();
-	$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT s.class_id, a.status, COUNT(*) AS total FROM ' . mags_erp_table( 'attendance' ) . ' a INNER JOIN ' . mags_erp_table( 'students' ) . ' s ON s.id = a.student_id WHERE a.att_date BETWEEN %s AND %s AND s.hidden_at IS NULL AND ' . mags_erp_not_holiday_sql( 'a.att_date' ) . ' GROUP BY s.class_id, a.status', $from, $to ) );
+	$rows   = $wpdb->get_results( $wpdb->prepare( 'SELECT a.class_id, a.status, COUNT(*) AS total FROM ' . mags_erp_table( 'attendance' ) . ' a INNER JOIN ' . mags_erp_table( 'students' ) . ' s ON s.id = a.student_id WHERE a.att_date BETWEEN %s AND %s AND s.hidden_at IS NULL AND ' . mags_erp_not_holiday_sql( 'a.att_date' ) . ' GROUP BY a.class_id, a.status', $from, $to ) );
 	foreach ( (array) $rows as $row ) { $counts[ (int) $row->class_id ][ $row->status ] = (int) $row->total; }
 	$report = array();
 	foreach ( mags_erp_get_classes() as $class ) {
@@ -57,13 +80,14 @@ function mags_erp_report_attendance_classes( $from, $to ) {
  */
 function mags_erp_report_marks( $exam_id, $class_id ) {
 	global $wpdb;
-	$papers   = mags_erp_exam_papers( $exam_id, array( $class_id ) );
-	$students = mags_erp_class_students( $class_id );
-	$marks    = array();
-	if ( $papers && $students ) {
-		$rows = $wpdb->get_results( 'SELECT * FROM ' . mags_erp_table( 'exam_marks' ) . ' WHERE paper_id IN (' . mags_erp_id_list( wp_list_pluck( $papers, 'id' ) ) . ') AND student_id IN (' . mags_erp_id_list( wp_list_pluck( $students, 'id' ) ) . ')' );
+	$papers = mags_erp_exam_papers( $exam_id, array( $class_id ) );
+	$marks  = array();
+	if ( $papers ) {
+		$rows = $wpdb->get_results( 'SELECT * FROM ' . mags_erp_table( 'exam_marks' ) . ' WHERE paper_id IN (' . mags_erp_id_list( wp_list_pluck( $papers, 'id' ) ) . ')' );
 		foreach ( (array) $rows as $row ) { $marks[ (int) $row->student_id ][ (int) $row->paper_id ] = $row; }
 	}
+	// Students who sat the exam in this class and have moved up since are listed too.
+	$students = mags_erp_report_students( $class_id, array_keys( $marks ) );
 	$report = array();
 	foreach ( $students as $student ) {
 		$line = array( 'student' => $student, 'cells' => array(), 'total' => 0.0, 'max' => 0.0, 'percent' => null );

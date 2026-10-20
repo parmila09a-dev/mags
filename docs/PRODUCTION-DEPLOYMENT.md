@@ -104,6 +104,9 @@ Keep debug output disabled publicly. Store database, SMTP and service credential
 ## 8. Final verification and operations
 
 - **Before release:** take database/uploads backups; record WordPress, PHP, theme and plugin versions; complete `PRE-LAUNCH-CHECKLIST.md`.
+- **Portal emails and scheduled tasks:** the emails to parents (absent, fees, results) are sent by WP-Cron. Make sure the site sends email (section 4), and if `DISABLE_WP_CRON` is set, run `wp cron event run --due-now` from the server's cron every 5 minutes. Send one test by marking a child with your own email as parent absent, and check **More → Settings → Newest emails**.
+- **Portal backups:** the office's **More → Backup** download is a copy of the portal data for the school. It does not replace the host's database and uploads backups above.
+- **Portal private files on nginx:** nginx does not read `.htaccess`. Add the rule in `docs/nginx-mags-erp-private.conf` to the site's server block, reload nginx, then open the portal's **More → Settings** and press **Check again**: **Private files** must show **Closed**.
 - **After migration/update:** verify homepage, navigation, Notice/archive order, PDFs, Download categories, News/Events promotion, Gallery Albums, Contact map/form, Enquiry record and login.
 - **Browser/device pass:** current Chrome, Edge, Firefox, Android Chrome and iPhone/iPad Safari at representative mobile/tablet/desktop widths.
 - **Performance pass:** measure Core Web Vitals after final photographs, map, analytics and plugins are present; correct oversized images and unnecessary plugins.

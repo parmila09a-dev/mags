@@ -8,7 +8,7 @@ if ( ! $erp_student ) : ?>
 	<?php
 	return;
 endif;
-$erp_notes = mags_erp_classes_notes( array( (int) $erp_student->class_id ) );
+$erp_notes = mags_erp_classes_notes( array( (int) $erp_student->class_id ), 300, false, $erp_student );
 ?>
 <header class="erp-head">
 	<p class="erp-eyebrow"><?php echo esc_html( mags_erp_class_label( mags_erp_get_class( (int) $erp_student->class_id ) ) ); ?></p>

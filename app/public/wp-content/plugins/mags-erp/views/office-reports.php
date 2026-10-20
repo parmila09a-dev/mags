@@ -48,7 +48,7 @@ foreach ( $erp_kinds as $erp_kind => $erp_kind_label ) { $erp_tabs[ mags_erp_url
 					<thead><tr><th scope="col">Roll</th><th scope="col">Student</th><th scope="col" class="erp-num">Present</th><th scope="col" class="erp-num">Absent</th><th scope="col" class="erp-num">Leave</th><th scope="col" class="erp-num">Present %</th></tr></thead>
 					<tbody>
 						<?php foreach ( $erp_lines as $erp_line ) : ?>
-							<tr><td><?php echo esc_html( $erp_line['student']->roll_no ); ?></td><th scope="row"><?php echo esc_html( $erp_line['student']->full_name ); ?><small><?php echo esc_html( $erp_line['student']->admission_no ); ?></small></th><td class="erp-num"><?php echo esc_html( $erp_line['P'] ); ?></td><td class="erp-num"><?php echo esc_html( $erp_line['A'] ); ?></td><td class="erp-num"><?php echo esc_html( $erp_line['L'] ); ?></td><td class="erp-num"><strong><?php echo esc_html( null === $erp_line['percent'] ? '–' : $erp_line['percent'] . '%' ); ?></strong></td></tr>
+							<tr><td><?php echo esc_html( $erp_line['student']->roll_no ); ?></td><th scope="row"><?php echo esc_html( $erp_line['student']->full_name ); ?><small><?php echo esc_html( $erp_line['student']->admission_no . ( ! empty( $erp_line['student']->now_in ) ? ' · now in ' . $erp_line['student']->now_in : '' ) ); ?></small></th><td class="erp-num"><?php echo esc_html( $erp_line['P'] ); ?></td><td class="erp-num"><?php echo esc_html( $erp_line['A'] ); ?></td><td class="erp-num"><?php echo esc_html( $erp_line['L'] ); ?></td><td class="erp-num"><strong><?php echo esc_html( null === $erp_line['percent'] ? '–' : $erp_line['percent'] . '%' ); ?></strong></td></tr>
 						<?php endforeach; ?>
 					</tbody>
 				</table>
@@ -110,7 +110,7 @@ foreach ( $erp_kinds as $erp_kind => $erp_kind_label ) { $erp_tabs[ mags_erp_url
 							<?php foreach ( $erp_lines as $erp_line ) : ?>
 								<tr>
 									<td><?php echo esc_html( $erp_line['student']->roll_no ); ?></td>
-									<th scope="row"><?php echo esc_html( $erp_line['student']->full_name ); ?><small><?php echo esc_html( $erp_line['student']->admission_no ); ?></small></th>
+									<th scope="row"><?php echo esc_html( $erp_line['student']->full_name ); ?><small><?php echo esc_html( $erp_line['student']->admission_no . ( ! empty( $erp_line['student']->now_in ) ? ' · now in ' . $erp_line['student']->now_in : '' ) ); ?></small></th>
 									<?php foreach ( $erp_line['cells'] as $erp_cell ) : ?><td class="erp-num"><?php echo esc_html( $erp_cell ); ?></td><?php endforeach; ?>
 									<td class="erp-num"><strong><?php echo esc_html( mags_erp_format_marks( $erp_line['total'] ) ); ?></strong><small>/ <?php echo esc_html( mags_erp_format_marks( $erp_line['max'] ) ); ?></small></td>
 									<td class="erp-num"><strong><?php echo esc_html( null === $erp_line['percent'] ? '–' : $erp_line['percent'] . '%' ); ?></strong></td>

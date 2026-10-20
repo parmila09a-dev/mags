@@ -1,5 +1,5 @@
 <?php
-/** Student (and parent): the student's own fees, the payments the office has recorded and what is left to pay. */
+/** Student (and parent): the student's own fees, the payments the office has recorded (each with its receipt to download) and what is left to pay. */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 $erp_student = mags_erp_get_student_by_user( $ctx['user']->ID );
@@ -59,6 +59,7 @@ $erp_sums     = mags_erp_fee_breakdown( (int) $erp_student->id );
 	<?php if ( ! $erp_payments ) : ?>
 		<p class="erp-card erp-empty">No payment has been recorded yet.</p>
 	<?php else : ?>
+		<p class="erp-hint erp-hint--lead">Each payment has a receipt to download and print, the same as the one the school office gives.</p>
 		<ul class="erp-list erp-list--tight">
 			<?php foreach ( $erp_payments as $erp_payment ) : ?>
 				<li class="erp-row">
@@ -66,7 +67,7 @@ $erp_sums     = mags_erp_fee_breakdown( (int) $erp_student->id );
 						<strong><?php echo esc_html( mags_erp_money( $erp_payment->amount ) ); ?></strong>
 						<span><?php echo esc_html( mags_erp_format_date( $erp_payment->paid_on, 'j M Y' ) ); ?> · <?php echo esc_html( $erp_modes[ $erp_payment->mode ] ?? $erp_payment->mode ); ?></span>
 					</div>
-					<div class="erp-row__actions"><span class="erp-chip">Receipt <?php echo esc_html( mags_erp_receipt_no( $erp_payment ) ); ?></span></div>
+					<div class="erp-row__actions"><span class="erp-chip">Receipt <?php echo esc_html( mags_erp_receipt_no( $erp_payment ) ); ?></span><a class="erp-btn erp-btn--navy erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'receipt', array( 'id' => (int) $erp_payment->id ) ) ); ?>">Download receipt<span class="erp-sr"> <?php echo esc_html( mags_erp_receipt_no( $erp_payment ) ); ?> (PDF)</span></a></div>
 				</li>
 			<?php endforeach; ?>
 		</ul>

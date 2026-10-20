@@ -7,6 +7,9 @@
  * it, so downloading it again later gives the same paper even when the
  * student's profile has changed since. A wrong certificate is cancelled, not
  * deleted; its number is not used again.
+ *
+ * Making a TC marks the student as left: they leave the class lists and their
+ * login is switched off, with the date of leaving kept (mags_erp_mark_student_left()).
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -82,7 +85,7 @@ function mags_erp_issue_certificate( $student, $kind, array $fields ) {
 			'dob'          => $profile->dob ? mags_erp_format_date( $profile->dob ) : '',
 			'dob_words'    => $profile->dob ? mags_erp_date_words( $profile->dob ) : '',
 			'admitted_on'  => $profile->admitted_on ? mags_erp_format_date( $profile->admitted_on ) : '',
-			'left'         => (bool) $student->hidden_at,
+			'left'         => 'tc' === $kind || (bool) $student->hidden_at,
 		),
 	);
 
@@ -283,7 +286,12 @@ function mags_erp_action_issue_certificate() {
 	$made = mags_erp_issue_certificate( $student, $kind, $fields );
 	if ( is_wp_error( $made ) ) { mags_erp_flash( 'error', $made->get_error_message() ); return $back; }
 	$certificate = mags_erp_get_certificate( $made );
-	mags_erp_flash( 'success', sprintf( '%1$s %2$s made for %3$s. Download it from the list of certificates below.', mags_erp_certificate_kinds()[ $kind ][0], $certificate->serial_no, $student->full_name ) . ( 'tc' === $kind && ! $student->hidden_at ? ' The student is still in the class lists; remove the student under Students when they have left.' : '' ) );
+	$left        = '';
+	if ( 'tc' === $kind ) {
+		mags_erp_mark_student_left( (int) $student->id, $fields['leaving_date'], (int) $certificate->id );
+		$left = $student->hidden_at ? ' The student is marked as left on the date of leaving.' : ' ' . $student->full_name . ' is now marked as left: no longer in the class lists, and the login is switched off. Attendance, marks and fees are kept.';
+	}
+	mags_erp_flash( 'success', sprintf( '%1$s %2$s made for %3$s. Download it from the list of certificates below.', mags_erp_certificate_kinds()[ $kind ][0], $certificate->serial_no, $student->full_name ) . $left );
 	return $back . '#erp-certificates';
 }
 
@@ -293,6 +301,9 @@ function mags_erp_action_cancel_certificate() {
 	if ( ! $certificate ) { mags_erp_flash( 'error', 'That certificate no longer exists.' ); return mags_erp_url( 'certificates' ); }
 	$restore = (bool) mags_erp_post_int( 'restore' );
 	$done    = $restore ? mags_erp_unhide( 'certificates', (int) $certificate->id ) : mags_erp_hide( 'certificates', (int) $certificate->id );
-	mags_erp_flash( $done ? 'success' : 'error', $done ? sprintf( $restore ? 'Certificate %s is valid again.' : 'Certificate %s cancelled. It is kept in the list and its number is not used again.', $certificate->serial_no ) : 'Nothing was changed.' );
+	$student = mags_erp_get_student( (int) $certificate->student_id );
+	// Cancelling a wrong TC does not bring the student back by itself: the office decides that under Students.
+	$still   = $done && ! $restore && $student && $student->hidden_at && (int) $student->left_certificate_id === (int) $certificate->id ? ' The student is still marked as left. If they did not leave, restore them under Students → Removed students.' : '';
+	mags_erp_flash( $done ? 'success' : 'error', $done ? sprintf( $restore ? 'Certificate %s is valid again.' : 'Certificate %s cancelled. It is kept in the list and its number is not used again.', $certificate->serial_no ) . $still : 'Nothing was changed.' );
 	return 'certificates' === mags_erp_post_text( 'from' ) ? mags_erp_url( 'certificates' ) : mags_erp_url( 'profile', array( 'student' => (int) $certificate->student_id ) ) . '#erp-certificates';
 }

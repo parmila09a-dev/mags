@@ -23,10 +23,11 @@ function mags_erp_get_notice( $notice_id, $with_removed = false ) {
 	return $notice && ( $with_removed || ! $notice->hidden_at ) ? $notice : null;
 }
 
-function mags_erp_classes_notices( $class_ids, $limit = 200, $removed = false ) {
+/** Notices of the given classes, newest first. With $student, only those sent since the student came to the class. */
+function mags_erp_classes_notices( $class_ids, $limit = 200, $removed = false, $student = null ) {
 	global $wpdb;
 	if ( ! $class_ids ) { return array(); }
-	return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'notices' ) . ' WHERE class_id IN (' . mags_erp_id_list( $class_ids ) . ') AND hidden_at IS ' . ( $removed ? 'NOT NULL' : 'NULL' ) . ' ORDER BY created_at DESC, id DESC LIMIT %d', $limit ) );
+	return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'notices' ) . ' WHERE class_id IN (' . mags_erp_id_list( $class_ids ) . ') AND hidden_at IS ' . ( $removed ? 'NOT NULL' : 'NULL' ) . mags_erp_student_since_sql( $student, 'created_at' ) . ' ORDER BY created_at DESC, id DESC LIMIT %d', $limit ) );
 }
 
 function mags_erp_create_notice( $class_id, $teacher_id, $title, $body ) {

@@ -48,6 +48,18 @@ function mags_erp_actions() {
 		'decide_staff_leave'   => array( $office, 'mags_erp_action_decide_staff_leave' ),
 		'save_calendar'        => array( $office, 'mags_erp_action_save_calendar' ),
 		'delete_calendar'      => array( $office, 'mags_erp_action_delete_calendar' ),
+		'save_settings'        => array( $office, 'mags_erp_action_save_settings' ),
+		'check_private_files'  => array( $office, 'mags_erp_action_check_private_files' ),
+		'save_mail_settings'   => array( $office, 'mags_erp_action_save_mail_settings' ),
+		'send_mail_now'        => array( $office, 'mags_erp_action_send_mail_now' ),
+		'send_fee_reminders'   => array( $office, 'mags_erp_action_send_fee_reminders' ),
+		'download_backup'      => array( $office, 'mags_erp_action_download_backup' ),
+		'promote_classes'      => array( $office, 'mags_erp_action_promote_classes' ),
+		'undo_promotion'       => array( $office, 'mags_erp_action_undo_promotion' ),
+		'save_admit_settings'  => array( $office, 'mags_erp_action_save_admit_settings' ),
+		'set_admit'            => array( $office, 'mags_erp_action_set_admit' ),
+		'save_substitution'    => array( $office, 'mags_erp_action_save_substitution' ),
+		'remove_substitution'  => array( $office, 'mags_erp_action_remove_substitution' ),
 		'save_attendance'      => array( $teacher, 'mags_erp_action_save_attendance' ),
 		'save_homework'        => array( $teacher, 'mags_erp_action_save_homework' ),
 		'update_homework'      => array( $teacher, 'mags_erp_action_update_homework' ),
@@ -62,10 +74,14 @@ function mags_erp_actions() {
 		'decide_leave'         => array( $teacher, 'mags_erp_action_decide_leave' ),
 		'ask_staff_leave'      => array( $teacher, 'mags_erp_action_ask_staff_leave' ),
 		'withdraw_staff_leave' => array( $teacher, 'mags_erp_action_withdraw_staff_leave' ),
+		'make_ptm_slots'       => array( $teacher, 'mags_erp_action_make_ptm_slots' ),
+		'remove_ptm_slot'      => array( $teacher, 'mags_erp_action_remove_ptm_slot' ),
 		'submit_homework'      => array( $student, 'mags_erp_action_submit_homework' ),
 		'ask_question'         => array( $student, 'mags_erp_action_ask_question' ),
 		'ask_leave'            => array( $student, 'mags_erp_action_ask_leave' ),
 		'withdraw_leave'       => array( $student, 'mags_erp_action_withdraw_leave' ),
+		'book_ptm'             => array( $student, 'mags_erp_action_book_ptm' ),
+		'cancel_ptm'           => array( $student, 'mags_erp_action_cancel_ptm' ),
 		'reply_question'       => array( array( 'teacher', 'student' ), 'mags_erp_action_reply_question' ),
 	);
 }
@@ -334,7 +350,8 @@ function mags_erp_action_save_attendance() {
 	$date       = mags_erp_post_text( 'date' );
 	$marks      = isset( $_POST['status'] ) && is_array( $_POST['status'] ) ? wp_unslash( $_POST['status'] ) : array(); // phpcs:ignore WordPress.Security
 
-	if ( ! mags_erp_teacher_has_class( $teacher_id, $class_id ) ) {
+	// Own classes, or a class the office gave this teacher as a substitute for that very day.
+	if ( ! mags_erp_teacher_can_mark( $teacher_id, $class_id, $date ) ) {
 		mags_erp_flash( 'error', 'This class is not assigned to you.' );
 		return mags_erp_url();
 	}
@@ -352,7 +369,8 @@ function mags_erp_action_save_attendance() {
 	if ( ! array_sum( $counts ) ) {
 		mags_erp_flash( 'error', 'No attendance was marked.' );
 	} else {
-		mags_erp_flash( 'success', sprintf( 'Attendance saved for %s: %d present, %d absent, %d on leave.', mags_erp_format_date( $date ), $counts['P'], $counts['A'], $counts['L'] ) );
+		$mailed = mags_erp_notify_absent( $class_id, $date, $marks );
+		mags_erp_flash( 'success', sprintf( 'Attendance saved for %s: %d present, %d absent, %d on leave.', mags_erp_format_date( $date ), $counts['P'], $counts['A'], $counts['L'] ) . ( $mailed ? ' ' . sprintf( _n( 'The parent of %d absent child gets an email in %d minutes, unless you correct the mark before then.', 'The parents of %d absent children get an email in %d minutes, unless you correct the mark before then.', $mailed, 'mags-erp' ), $mailed, MAGS_ERP_ABSENT_MAIL_DELAY ) : '' ) );
 	}
 	return mags_erp_url( 'attendance', array( 'class' => $class_id, 'date' => $date ) );
 }
@@ -461,10 +479,11 @@ function mags_erp_action_submit_homework() {
 	$homework = mags_erp_get_homework( mags_erp_post_int( 'homework_id' ) );
 	$back     = mags_erp_url( 'homework' );
 	if ( ! $student || ! $homework || (int) $homework->class_id !== (int) $student->class_id ) { mags_erp_flash( 'error', 'That homework is not for your class.' ); return $back; }
+	if ( ! empty( $student->class_since ) && $homework->created_at < $student->class_since ) { mags_erp_flash( 'error', 'That homework was given before you came to this class.' ); return $back; }
 	$existing = mags_erp_get_student_submission( (int) $homework->id, (int) $student->id );
 	if ( $existing && $existing->checked_at ) { mags_erp_flash( 'error', 'This homework has already been checked and cannot be changed.' ); return $back; }
 
-	// Replaced answers are kept on the server, so the number of files one student can send in a day is limited.
+	// Every answer sent is a new upload, so the number of files one student can send in a day is limited.
 	if ( mags_erp_uploads_today( get_current_user_id() ) >= MAGS_ERP_STUDENT_FILES_PER_DAY ) { mags_erp_flash( 'error', sprintf( 'You have sent %d files today. Please send the rest tomorrow.', MAGS_ERP_STUDENT_FILES_PER_DAY ) ); return $back; }
 
 	$file_id = mags_erp_store_upload( 'answer_file' );

@@ -19,15 +19,16 @@ function mags_erp_import_columns() {
 		'class'        => array( 'class', 'classname', 'std', 'standard', 'grade' ),
 		'section'      => array( 'section', 'sec' ),
 		'roll_no'      => array( 'rollno', 'rollnumber', 'roll' ),
+		'email'        => array( 'parentemail', 'parentsemail', 'email', 'emailid', 'emailaddress', 'guardianemail', 'fatheremail', 'motheremail' ),
 	);
 }
 
 function mags_erp_import_sample_rows() {
 	return array(
-		array( 'Admission No', 'Name', 'Class', 'Section', 'Roll No' ),
-		array( 'A1001', 'Aarav Sharma', 'Class 5', 'A', '1' ),
-		array( 'A1002', 'Diya Gupta', 'Class 5', 'A', '2' ),
-		array( 'A1003', 'Kabir Singh', 'Class 6', '', '1' ),
+		array( 'Admission No', 'Name', 'Class', 'Section', 'Roll No', 'Parent Email' ),
+		array( 'A1001', 'Aarav Sharma', 'Class 5', 'A', '1', 'parent.sharma@example.com' ),
+		array( 'A1002', 'Diya Gupta', 'Class 5', 'A', '2', '' ),
+		array( 'A1003', 'Kabir Singh', 'Class 6', '', '1', '' ),
 	);
 }
 
@@ -57,7 +58,7 @@ function mags_erp_import_match_class( $class_text, $section_text, $classes ) {
 
 /**
  * Read the uploaded CSV. Returns array( rows, '' ) or array( array(), message ).
- * Each row is array( line, admission_no, name, class, section, roll_no ).
+ * Each row is array( line, admission_no, name, class, section, roll_no, parent email ).
  */
 function mags_erp_import_read( $path ) {
 	$text = (string) file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions
@@ -99,7 +100,7 @@ function mags_erp_import_read( $path ) {
 		$cells = array_map( static function ( $cell ) { return trim( sanitize_text_field( (string) $cell ) ); }, (array) $cells );
 		if ( '' === implode( '', $cells ) ) { continue; }
 		$value  = static function ( $field ) use ( $map, $cells ) { return isset( $map[ $field ] ) ? ( $cells[ $map[ $field ] ] ?? '' ) : ''; };
-		$rows[] = array( $line, $value( 'admission_no' ), $value( 'name' ), $value( 'class' ), $value( 'section' ), $value( 'roll_no' ) );
+		$rows[] = array( $line, $value( 'admission_no' ), $value( 'name' ), $value( 'class' ), $value( 'section' ), $value( 'roll_no' ), $value( 'email' ) );
 		if ( count( $rows ) > MAGS_ERP_IMPORT_MAX_ROWS ) { break; }
 	}
 	fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions
@@ -110,7 +111,7 @@ function mags_erp_import_read( $path ) {
 
 /**
  * Check every line. Returns array( students to add, lines to correct, number already in the portal ).
- * A student to add is array( admission_no, name, class_id, roll_no ).
+ * A student to add is array( admission_no, name, class_id, roll_no, parent email ).
  */
 function mags_erp_import_check( $rows ) {
 	$classes = mags_erp_get_classes();
@@ -119,7 +120,7 @@ function mags_erp_import_check( $rows ) {
 	$errors  = array();
 	$exists  = 0;
 	foreach ( $rows as $row ) {
-		list( $line, $admission_no, $name, $class_text, $section_text, $roll_no ) = $row;
+		list( $line, $admission_no, $name, $class_text, $section_text, $roll_no, $email ) = $row;
 		$problem = '';
 		$class_id = mags_erp_import_match_class( $class_text, $section_text, $classes );
 		if ( ! mags_erp_valid_admission_no( $admission_no ) ) {
@@ -138,11 +139,13 @@ function mags_erp_import_check( $rows ) {
 			$problem = sprintf( 'the class “%s” fits more than one class. Fill the Section column', $class_text );
 		} elseif ( mb_strlen( $roll_no ) > 10 ) {
 			$problem = 'the roll number is too long';
+		} elseif ( '' !== $email && ( ! is_email( $email ) || mb_strlen( $email ) > 120 ) ) {
+			$problem = sprintf( 'the parent email “%s” is not a correct email address', $email );
 		}
 		if ( mags_erp_valid_admission_no( $admission_no ) && ! isset( $seen[ strtolower( $admission_no ) ] ) ) { $seen[ strtolower( $admission_no ) ] = $line; }
 		if ( '' !== $problem ) { $errors[] = sprintf( 'Line %d: %s.', $line, $problem ); continue; }
 		if ( mags_erp_get_student_by_admission( $admission_no ) ) { $exists++; continue; }
-		$ready[] = array( $admission_no, $name, $class_id, $roll_no );
+		$ready[] = array( $admission_no, $name, $class_id, $roll_no, $email );
 	}
 	return array( $ready, $errors, $exists );
 }
@@ -177,6 +180,7 @@ function mags_erp_action_import_students() {
 		if ( microtime( true ) > $deadline ) { $waiting = count( $ready ) - $index; break; }
 		$created = mags_erp_create_student( $student[0], $student[1], $student[2], $student[3] );
 		if ( is_wp_error( $created ) ) { $failed++; continue; }
+		if ( '' !== $student[4] ) { mags_erp_write_profile( (int) $created[0], array( 'parent_email' => $student[4] ) ); }
 		$logins[] = array( $student[1], $labels[ $student[2] ] ?? '', $student[0], $created[1] );
 	}
 

@@ -1,8 +1,9 @@
 <?php
 /**
- * Fee receipt. After a payment is recorded the office downloads its receipt as
- * a PDF: one A4 page with a copy for the parent and a copy for the office.
- * A cancelled payment has no receipt.
+ * Fee receipt. After a payment is recorded its receipt can be downloaded as a
+ * PDF: one A4 page with a copy for the parent and a copy for the office. The
+ * office downloads any receipt; a student (and the parents, who use the same
+ * login) the receipts of their own payments. A cancelled payment has no receipt.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -102,9 +103,17 @@ function mags_erp_receipt_pdf( $receipt ) {
 	return $pdf->output( 'Fee receipt ' . $receipt['number'] . ' - ' . $receipt['student'] );
 }
 
-/** /portal/receipt/?id=… : the office downloads the receipt of a payment that is not cancelled. */
+/**
+ * /portal/receipt/?id=… : the receipt of a payment that is not cancelled. The
+ * office gets any receipt, a student only one of their own payments.
+ */
 function mags_erp_serve_receipt() {
-	$payment = 'office' === mags_erp_user_role() ? mags_erp_get_payment( mags_erp_get_int( 'id' ) ) : null;
+	$role    = mags_erp_user_role();
+	$payment = in_array( $role, array( 'office', 'student' ), true ) ? mags_erp_get_payment( mags_erp_get_int( 'id' ) ) : null;
+	if ( $payment && 'student' === $role ) {
+		$own     = mags_erp_get_student_by_user( get_current_user_id() );
+		$payment = $own && (int) $own->id === (int) $payment->student_id ? $payment : null;
+	}
 	$student = $payment && ! $payment->hidden_at ? mags_erp_get_student( (int) $payment->student_id ) : null;
 	if ( ! $student ) { mags_erp_download_refused( 'This receipt is not available. A cancelled payment has no receipt.' ); }
 	$receipt = mags_erp_receipt_data( $payment, $student );
@@ -122,7 +131,7 @@ function mags_erp_serve_receipt() {
 				),
 			),
 			'Fee receipt ' . $receipt['number'],
-			mags_erp_url( 'fees', array( 'student' => (int) $student->id ) )
+			'student' === $role ? mags_erp_url( 'fees' ) : mags_erp_url( 'fees', array( 'student' => (int) $student->id ) )
 		);
 	}
 	mags_erp_send_pdf( mags_erp_receipt_pdf( $receipt ), 'receipt-' . $receipt['number'] . '-' . sanitize_title( $student->admission_no ) . '.pdf' );

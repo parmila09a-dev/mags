@@ -15,8 +15,8 @@ function mags_erp_query_vars( $vars ) {
 add_filter( 'query_vars', 'mags_erp_query_vars' );
 
 /**
- * Screens each role can open: route => array( view file, title, navigation label, icon, in the navigation bar ).
- * The bar holds the four screens used most and "More"; the More screen lists every section.
+ * Screens each role can open: route => array( view file, title, navigation label, icon, in the navigation bar, not listed under More ).
+ * The bar holds the four screens used most and "More"; the More screen lists every section except those opened from another screen.
  */
 function mags_erp_screens( $role ) {
 	$more    = array( 'more', 'All sections', 'More', 'dots', true );
@@ -28,19 +28,25 @@ function mags_erp_screens( $role ) {
 			'fees'      => array( 'office-fees', 'Fees', 'Fees', 'rupee', true ),
 			'reports'   => array( 'office-reports', 'Reports', 'Reports', 'chart', true ),
 			'more'      => $more,
+			'today'        => array( 'office-today', 'Today at school', 'Today', 'sun', false ),
 			'classes'   => array( 'office-classes', 'Classes', 'Classes', 'grid', false ),
 			'teachers'  => array( 'office-teachers', 'Teachers', 'Teachers', 'badge', false ),
 			'import'    => array( 'office-import', 'Add students from a file', 'Import students', 'upload', false ),
 			'subjects'  => array( 'office-subjects', 'Subjects and periods', 'Subjects', 'layers', false ),
 			'timetable' => array( 'office-timetable', 'Timetable', 'Timetable', 'clock', false ),
 			'exams'     => array( 'office-exams', 'Exams', 'Exams', 'award', false ),
+			'admit-cards' => array( 'office-admit-cards', 'Admit cards', 'Admit cards', 'ticket', false, true ),
 			'questions' => array( 'office-questions', 'Questions', 'Questions', 'chat', false ),
 			'calendar'  => array( 'office-calendar', 'School calendar', 'Calendar', 'calendar', false ),
 			'profile'      => array( 'office-profile', 'Student profiles', 'Profiles', 'idcard', false ),
 			'certificates' => array( 'office-certificates', 'Certificates', 'Certificates', 'stamp', false ),
 			'admissions'   => array( 'office-admissions', 'Admissions', 'Admissions', 'inbox', false ),
+			'promotion'    => array( 'office-promotion', 'New session: move classes up', 'Promotion', 'arrowup', false ),
 			'staff'        => array( 'office-staff', 'Teacher attendance', 'Teacher attendance', 'check', false ),
 			'staff-leave'  => array( 'office-staff-leave', 'Teacher leave', 'Teacher leave', 'leave', false ),
+			'substitutes'  => array( 'office-substitutes', 'Substitute teachers', 'Substitutes', 'swap', false ),
+			'settings'     => array( 'office-settings', 'Settings', 'Settings', 'gear', false ),
+			'backup'       => array( 'office-backup', 'Backup', 'Backup', 'archive', false ),
 			'account'   => $account,
 		),
 		'teacher' => array(
@@ -54,6 +60,7 @@ function mags_erp_screens( $role ) {
 			'marks'      => array( 'teacher-marks', 'Exam marks', 'Marks', 'award', false ),
 			'questions'  => array( 'teacher-questions', 'Questions', 'Questions', 'chat', false ),
 			'leave'      => array( 'teacher-leave', 'Leave requests', 'Leave', 'leave', false ),
+			'ptm'        => array( 'teacher-ptm', 'Parent-teacher meetings', 'PTM', 'meet', false ),
 			'calendar'   => array( 'calendar', 'School calendar', 'Calendar', 'calendar', false ),
 			'my-attendance' => array( 'teacher-my-attendance', 'My attendance and leave', 'My attendance', 'badge', false ),
 			'account'    => $account,
@@ -66,8 +73,10 @@ function mags_erp_screens( $role ) {
 			'more'      => $more,
 			'notes'     => array( 'student-notes', 'Class notes', 'Notes', 'file', false ),
 			'marks'     => array( 'student-marks', 'My marks', 'Marks', 'award', false ),
+			'exams'     => array( 'student-exams', 'Exams: date sheet and admit card', 'Exams', 'ticket', false ),
 			'questions' => array( 'student-questions', 'My questions', 'Questions', 'chat', false ),
 			'leave'     => array( 'student-leave', 'Leave', 'Leave', 'leave', false ),
+			'ptm'       => array( 'student-ptm', 'Parent-teacher meeting', 'PTM', 'meet', false ),
 			'fees'      => array( 'student-fees', 'My fees', 'Fees', 'rupee', false ),
 			'calendar'  => array( 'calendar', 'School calendar', 'Calendar', 'calendar', false ),
 			'profile'   => array( 'student-profile', 'My profile', 'Profile', 'idcard', false ),
@@ -112,6 +121,13 @@ function mags_erp_icon( $name ) {
 		'chart'     => '<path d="M4 20V5"/><path d="M4 20h16.500"/><path d="M8.500 16.500v-5M13 16.500V8M17.500 16.500v-7"/>',
 		'upload'    => '<path d="M12 15.500V4.500"/><path d="m7.500 8.500 4.500-4.500 4.500 4.500"/><path d="M4.500 15v4.500h15V15"/>',
 		'layers'    => '<path d="m12 3.500 8.500 4.500-8.500 4.500-8.500-4.500z"/><path d="m3.500 12 8.500 4.500 8.500-4.500"/><path d="m3.500 16 8.500 4.500 8.500-4.500"/>',
+		'gear'      => '<circle cx="12" cy="12" r="3"/><path d="M12 2.500v2.500M12 19v2.500M21.500 12H19M5 12H2.500M18.700 5.300 17 7M7 17l-1.700 1.700M18.700 18.700 17 17M7 7 5.300 5.300"/>',
+		'sun'       => '<circle cx="12" cy="12" r="4"/><path d="M12 2.500v2M12 19.500v2M2.500 12h2M19.500 12h2M5.300 5.300l1.400 1.400M17.300 17.300l1.400 1.400M5.300 18.700l1.400-1.400M17.300 6.700l1.400-1.400"/>',
+		'archive'   => '<rect x="3.500" y="4" width="17" height="4.500" rx="1.500"/><path d="M5 8.500V19a1.500 1.500 0 0 0 1.500 1.500h11A1.500 1.500 0 0 0 19 19V8.500"/><path d="M10 12.500h4"/>',
+		'arrowup'   => '<path d="M12 20V5"/><path d="m6 11 6-6 6 6"/><path d="M5 20.500h14"/>',
+		'swap'      => '<path d="M4 8h13l-3.500-3.500"/><path d="M20 16H7l3.500 3.500"/>',
+		'ticket'    => '<path d="M3.500 7.500a2 2 0 0 0 2-2h13a2 2 0 0 0 2 2v9a2 2 0 0 0-2 2h-13a2 2 0 0 0-2-2z"/><path d="M9 9.500h6M9 13h6"/>',
+		'meet'      => '<circle cx="8" cy="8" r="3"/><circle cx="16.500" cy="8" r="3"/><path d="M2.500 19c.600-3 2.800-4.800 5.500-4.800s4.900 1.800 5.500 4.800"/><path d="M13.500 15c.900-.500 1.900-.800 3-.800 2.700 0 4.900 1.800 5.500 4.800"/>',
 	);
 	return '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . ( $paths[ $name ] ?? '' ) . '</svg>';
 }
@@ -134,9 +150,12 @@ function mags_erp_dispatch() {
 	// Portal screens are personal: never cached, never indexed.
 	nocache_headers();
 	header( 'X-Robots-Tag: noindex, nofollow' );
-	// The admission form is the one screen that needs no login; it handles its own post.
+	// The admission form and its status page are the screens that need no login; they handle their own post.
 	if ( 'admission' === $route ) {
 		mags_erp_admission_screen();
+	}
+	if ( 'admission-status' === $route ) {
+		mags_erp_admission_status_screen();
 	}
 	mags_erp_handle_post( $route );
 
@@ -171,8 +190,8 @@ function mags_erp_dispatch() {
 	if ( 'export' === $route && 'office' === $ctx['role'] ) {
 		mags_erp_export();
 	}
-	// Documents the office downloads; each checks the role itself.
-	$downloads = array( 'certificate' => 'mags_erp_serve_certificate', 'receipt' => 'mags_erp_serve_receipt', 'id-card' => 'mags_erp_serve_id_card' );
+	// Documents to download (fee receipts also for the student's own payments); each checks the role itself.
+	$downloads = array( 'certificate' => 'mags_erp_serve_certificate', 'receipt' => 'mags_erp_serve_receipt', 'id-card' => 'mags_erp_serve_id_card', 'admit-card' => 'mags_erp_serve_admit_card', 'date-sheet' => 'mags_erp_serve_datesheet' );
 	if ( isset( $downloads[ $route ] ) ) {
 		call_user_func( $downloads[ $route ] );
 	}

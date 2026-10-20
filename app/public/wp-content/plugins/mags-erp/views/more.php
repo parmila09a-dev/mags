@@ -11,7 +11,7 @@ $erp_labels = mags_erp_role_labels();
 
 <nav aria-label="All sections">
 	<ul class="erp-menu">
-		<?php foreach ( $ctx['screens'] as $erp_menu_route => $erp_menu_screen ) : if ( 'more' === $erp_menu_route ) { continue; } ?>
+		<?php foreach ( $ctx['screens'] as $erp_menu_route => $erp_menu_screen ) : if ( 'more' === $erp_menu_route || ! empty( $erp_menu_screen[5] ) ) { continue; } ?>
 			<li>
 				<a class="erp-menu__item" href="<?php echo esc_url( mags_erp_url( $erp_menu_route ) ); ?>">
 					<span class="erp-menu__icon"><?php echo mags_erp_icon( $erp_menu_screen[3] ); // phpcs:ignore WordPress.Security.EscapeOutput ?></span>

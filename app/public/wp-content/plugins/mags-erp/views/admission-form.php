@@ -28,12 +28,14 @@ $erp_invalid = static function ( $key ) use ( $erp_e ) {
 			<p>Your application number is</p>
 			<p class="erp-admission__number"><?php echo esc_html( $erp_form['done'] ); ?></p>
 			<p>Please write this number down. The school office will read the form and contact you on the phone number you gave. You do not need to send the form again.</p>
-			<p><a class="erp-btn erp-btn--ghost" href="<?php echo esc_url( home_url( '/' ) ); ?>">Back to the school website</a></p>
+			<p>With this number and your phone number you can check later whether the admission is accepted.</p>
+			<p><a class="erp-btn erp-btn--navy" href="<?php echo esc_url( mags_erp_url( 'admission-status', array( 'no' => $erp_form['done'] ) ) ); ?>">Check the status</a> <a class="erp-btn erp-btn--ghost" href="<?php echo esc_url( home_url( '/' ) ); ?>">Back to the school website</a></p>
 		</div>
 	<?php elseif ( ! $erp_form['open'] ) : ?>
 		<div class="erp-card erp-empty">
 			<h2>Admissions are closed now</h2>
 			<p>The online admission form is not open at present. Please contact the school office for admission.</p>
+			<p>Sent a form already? <a href="<?php echo esc_url( mags_erp_url( 'admission-status' ) ); ?>">Check the status of your form</a>.</p>
 			<p><a class="erp-btn erp-btn--ghost" href="<?php echo esc_url( home_url( '/' ) ); ?>">Back to the school website</a></p>
 		</div>
 	<?php else : ?>
@@ -79,13 +81,14 @@ $erp_invalid = static function ( $key ) use ( $erp_e ) {
 			<?php if ( mags_erp_photo_supported() ) : ?>
 				<p class="erp-field erp-field--file"><label for="erp_adm_photo">Child’s photo <span>(optional)</span></label><input id="erp_adm_photo" name="photo" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"><small>A clear picture of the face. JPG or PNG.</small><?php $erp_error( 'photo' ); ?></p>
 			<?php endif; ?>
-			<p class="erp-field erp-field--file"><label for="erp_adm_document">Birth certificate <span>(optional)</span></label><input id="erp_adm_document" name="document_file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"><small>PDF, JPG or PNG, up to <?php echo esc_html( size_format( MAGS_ERP_ADMISSION_DOCUMENT_BYTES ) ); ?>. You can also bring it to the school.</small><?php $erp_error( 'document_file' ); ?></p>
+			<p class="erp-field erp-field--file"><label for="erp_adm_document">Birth certificate <span>(optional)</span></label><input id="erp_adm_document" name="document_file" type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"><small>PDF, JPG or PNG, up to <?php echo esc_html( size_format( mags_erp_admission_document_bytes() ) ); ?>. You can also bring it to the school.</small><?php $erp_error( 'document_file' ); ?></p>
 
 			<p class="erp-check"><label><input type="checkbox" name="agree" value="1" <?php checked( '' !== $erp_v['agree'] ); ?> required> <span>I am the child’s parent or guardian and these details are correct. The school may use them for the admission.</span></label></p>
 			<?php $erp_error( 'agree' ); ?>
 
 			<button class="erp-btn erp-btn--orange erp-btn--block" type="submit">Send admission form</button>
 			<p class="erp-hint">Sending the form does not mean that the admission is given. The school office will contact you.</p>
+			<p class="erp-hint">Sent a form already? <a href="<?php echo esc_url( mags_erp_url( 'admission-status' ) ); ?>">Check the status of your form</a>.</p>
 		</form>
 	<?php endif; ?>
 </section>

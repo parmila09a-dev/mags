@@ -5,6 +5,13 @@
  * Files live outside the Media Library in a folder that the web server is told
  * not to serve, under random names with no real extension. They reach the
  * browser only through the portal's /portal/file/ route after an access check.
+ * Apache reads the folder's .htaccess; nginx needs the rule from
+ * mags_erp_nginx_rule() in the site's server block, and the office is warned
+ * while the folder can still be opened directly (mags_erp_private_files_exposed()).
+ *
+ * A removed file stays on disk, hidden, so it can be restored with its record.
+ * A file that a new upload replaces (an answer sent again, a new photo) is
+ * deleted from the server.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -41,7 +48,7 @@ function mags_erp_allowed_extensions_label() {
 	return 'PDF, Word, PowerPoint, Excel, JPG, PNG, WebP, TXT or ZIP';
 }
 
-/** Most files one student can send in a day (answers, and answers that replace an earlier one). */
+/** Most files one student can send in a day (answers, and answers that replace an earlier one). Replaced files are deleted, but each one was an upload. */
 define( 'MAGS_ERP_STUDENT_FILES_PER_DAY', 30 );
 
 /** Files this account has uploaded today, counting the ones that were replaced later. */
@@ -50,11 +57,13 @@ function mags_erp_uploads_today( $user_id ) {
 	return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM ' . mags_erp_table( 'files' ) . ' WHERE uploaded_by = %d AND created_at >= %s', $user_id, mags_erp_today() . ' 00:00:00' ) );
 }
 
+/** Largest file that can be uploaded: the office's setting, or the server's limit when that is lower. */
 function mags_erp_max_file_size() {
-	return (int) min( 10 * MB_IN_BYTES, wp_max_upload_size() ?: 10 * MB_IN_BYTES );
+	$limit = mags_erp_setting( 'max_file_mb' ) * MB_IN_BYTES;
+	return (int) min( $limit, wp_max_upload_size() ?: $limit );
 }
 
-/** A stored file. A file that was replaced or removed is kept on disk but is no longer handed out. */
+/** A stored file. A removed or replaced file is no longer handed out. */
 function mags_erp_get_file( $file_id ) {
 	global $wpdb;
 	return $file_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'files' ) . ' WHERE id = %d AND hidden_at IS NULL', $file_id ) ) : null;
@@ -162,9 +171,71 @@ function mags_erp_discard_upload( $file_id ) {
 	$wpdb->delete( mags_erp_table( 'files' ), array( 'id' => (int) $file->id ), array( '%d' ) );
 }
 
-/** Stop handing out a file (for example an answer the student replaced). The file itself stays on disk. */
+/** Stop handing out a file (for example a photo taken off a profile). The file itself stays on disk. */
 function mags_erp_hide_file( $file_id ) {
 	return $file_id ? mags_erp_hide( 'files', (int) $file_id ) : false;
+}
+
+/**
+ * Delete a file that a new upload has replaced. The file leaves the server;
+ * its row stays, hidden, so the record of who sent what (and the count of
+ * files sent today) is kept. A file that another record still uses is only
+ * hidden. Returns true when the file was deleted.
+ */
+function mags_erp_delete_replaced_file( $file_id ) {
+	global $wpdb;
+	$file = $file_id ? $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'files' ) . ' WHERE id = %d', $file_id ) ) : null;
+	if ( ! $file ) { return false; }
+	mags_erp_hide( 'files', (int) $file->id );
+	if ( mags_erp_file_in_use( (int) $file->id ) ) { return false; }
+	$path = mags_erp_file_path( $file );
+	if ( $path && is_file( $path ) ) { wp_delete_file( $path ); }
+	return ! is_file( $path );
+}
+
+/** Is a file still part of some record (also a removed one that could be restored)? */
+function mags_erp_file_in_use( $file_id ) {
+	global $wpdb;
+	$uses = array(
+		'SELECT id FROM ' . mags_erp_table( 'homework_files' ) . ' WHERE file_id = %d LIMIT 1',
+		'SELECT id FROM ' . mags_erp_table( 'homework' ) . ' WHERE file_id = %d LIMIT 1',
+		'SELECT id FROM ' . mags_erp_table( 'notes' ) . ' WHERE file_id = %d LIMIT 1',
+		'SELECT id FROM ' . mags_erp_table( 'submissions' ) . ' WHERE file_id = %d LIMIT 1',
+		'SELECT student_id FROM ' . mags_erp_table( 'student_profiles' ) . ' WHERE photo_file_id = %d LIMIT 1',
+		'SELECT id FROM ' . mags_erp_table( 'student_documents' ) . ' WHERE file_id = %d LIMIT 1',
+		// Once an application is accepted, its files belong to the student's profile and documents.
+		'SELECT id FROM ' . mags_erp_table( 'admissions' ) . " WHERE ( photo_file_id = %d OR document_file_id = %d ) AND status <> 'approved' LIMIT 1",
+	);
+	foreach ( $uses as $sql ) {
+		if ( $wpdb->get_var( $wpdb->prepare( $sql, array_fill( 0, substr_count( $sql, '%d' ), (int) $file_id ) ) ) ) { return true; }
+	}
+	return false;
+}
+
+/**
+ * Can a file in the private folder be opened straight from the internet? A
+ * small test file is put in the folder and the website is asked for it, the
+ * way a browser would. Returns true (it can: the nginx rule is missing), false
+ * (the web server refuses) or null (the site could not reach itself, so it is
+ * not known). The answer is kept for 12 hours; $fresh tests again now.
+ */
+function mags_erp_private_files_exposed( $fresh = false ) {
+	$kept = get_transient( 'mags_erp_private_check' );
+	if ( ! $fresh && is_array( $kept ) ) { return $kept['exposed']; }
+	$dir     = mags_erp_private_dir();
+	$name    = 'access-check-' . wp_generate_password( 12, false ) . '.bin';
+	$mark    = 'mags-erp-' . wp_generate_password( 20, false );
+	$exposed = null;
+	if ( false !== @file_put_contents( $dir . '/' . $name, $mark ) ) { // phpcs:ignore WordPress.PHP.NoSilencedErrors, WordPress.WP.AlternativeFunctions
+		$upload   = wp_upload_dir( null, false );
+		$response = wp_remote_get( trailingslashit( $upload['baseurl'] ) . 'mags-erp-private/' . $name, array( 'timeout' => 4, 'redirection' => 0, 'sslverify' => apply_filters( 'https_local_ssl_verify', false ) ) );
+		if ( ! is_wp_error( $response ) && wp_remote_retrieve_response_code( $response ) ) {
+			$exposed = false !== strpos( (string) wp_remote_retrieve_body( $response ), $mark );
+		}
+		wp_delete_file( $dir . '/' . $name );
+	}
+	set_transient( 'mags_erp_private_check', array( 'exposed' => $exposed, 'at' => current_time( 'mysql' ) ), null === $exposed ? HOUR_IN_SECONDS : 12 * HOUR_IN_SECONDS );
+	return $exposed;
 }
 
 /** Upload-size error that arrives with an empty $_POST because PHP dropped the whole request body. */
@@ -193,9 +264,11 @@ function mags_erp_user_can_open_file( $file_id, $user_id ) {
 	$in_class  = static function ( $class_id ) use ( $class_ids ) { return in_array( (int) $class_id, $class_ids, true ); };
 	$homework  = mags_erp_table( 'homework' );
 
-	$homework_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT h.class_id FROM ' . mags_erp_table( 'homework_files' ) . " f INNER JOIN {$homework} h ON h.id = f.homework_id WHERE f.file_id = %d AND f.hidden_at IS NULL AND h.hidden_at IS NULL", $file_id ) );
+	// A promoted student opens the homework and notes their new class got since they came, like the lists show.
+	$since         = 'student' === $role ? mags_erp_student_since_sql( $student, 'created_at' ) : '';
+	$homework_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT h.class_id FROM ' . mags_erp_table( 'homework_files' ) . " f INNER JOIN {$homework} h ON h.id = f.homework_id WHERE f.file_id = %d AND f.hidden_at IS NULL AND h.hidden_at IS NULL" . str_replace( 'created_at', 'h.created_at', $since ), $file_id ) );
 	foreach ( (array) $homework_rows as $row ) { if ( $in_class( $row->class_id ) ) { return true; } }
-	$note_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT class_id FROM ' . mags_erp_table( 'notes' ) . ' WHERE file_id = %d AND hidden_at IS NULL', $file_id ) );
+	$note_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT class_id FROM ' . mags_erp_table( 'notes' ) . ' WHERE file_id = %d AND hidden_at IS NULL' . $since, $file_id ) );
 	foreach ( (array) $note_rows as $row ) { if ( $in_class( $row->class_id ) ) { return true; } }
 	$submission_rows = $wpdb->get_results( $wpdb->prepare( 'SELECT s.student_id, h.class_id FROM ' . mags_erp_table( 'submissions' ) . " s INNER JOIN {$homework} h ON h.id = s.homework_id WHERE s.file_id = %d AND h.hidden_at IS NULL", $file_id ) );
 	foreach ( (array) $submission_rows as $row ) {

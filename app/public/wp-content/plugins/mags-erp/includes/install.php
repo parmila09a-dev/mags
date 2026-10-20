@@ -43,6 +43,9 @@ function mags_erp_schema() {
 			full_name varchar(120) NOT NULL,
 			class_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			roll_no varchar(10) NOT NULL DEFAULT '',
+			left_on date NULL,
+			left_certificate_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			class_since datetime NULL,
 			created_at datetime NOT NULL,
 			{$hidden}
 			PRIMARY KEY  (id),
@@ -145,6 +148,9 @@ function mags_erp_schema() {
 			name varchar(120) NOT NULL,
 			start_date date NULL,
 			published_at datetime NULL,
+			datesheet_at datetime NULL,
+			admit_rule varchar(10) NOT NULL DEFAULT 'none',
+			admit_note text NULL,
 			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
 			{$hidden}
@@ -155,6 +161,8 @@ function mags_erp_schema() {
 			subject_id bigint(20) unsigned NOT NULL,
 			max_marks decimal(6,2) NOT NULL,
 			exam_date date NULL,
+			start_time varchar(5) NOT NULL DEFAULT '',
+			end_time varchar(5) NOT NULL DEFAULT '',
 			created_at datetime NOT NULL,
 			{$hidden}
 			PRIMARY KEY  (id),
@@ -223,6 +231,7 @@ function mags_erp_schema() {
 			kind varchar(10) NOT NULL DEFAULT 'fee',
 			parent_id bigint(20) unsigned NOT NULL DEFAULT 0,
 			reason varchar(20) NOT NULL DEFAULT '',
+			reminded_at datetime NULL,
 			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
 			{$hidden}
@@ -248,6 +257,7 @@ function mags_erp_schema() {
 			father_name varchar(120) NOT NULL DEFAULT '',
 			mother_name varchar(120) NOT NULL DEFAULT '',
 			guardian_phone varchar(20) NOT NULL DEFAULT '',
+			parent_email varchar(120) NOT NULL DEFAULT '',
 			emergency_name varchar(120) NOT NULL DEFAULT '',
 			emergency_phone varchar(20) NOT NULL DEFAULT '',
 			blood_group varchar(5) NOT NULL DEFAULT '',
@@ -340,6 +350,78 @@ function mags_erp_schema() {
 			PRIMARY KEY  (id),
 			KEY student_id (student_id),
 			KEY paid_on (paid_on)",
+		'promotions'       => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			session varchar(10) NOT NULL DEFAULT '',
+			plan longtext NOT NULL,
+			moved_count int(10) unsigned NOT NULL DEFAULT 0,
+			left_count int(10) unsigned NOT NULL DEFAULT 0,
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			undone_at datetime NULL,
+			undone_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id)",
+		'class_history'    => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			promotion_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			student_id bigint(20) unsigned NOT NULL,
+			from_class_id bigint(20) unsigned NOT NULL,
+			to_class_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			roll_no varchar(10) NOT NULL DEFAULT '',
+			prev_class_since datetime NULL,
+			session varchar(10) NOT NULL DEFAULT '',
+			moved_at datetime NOT NULL,
+			undone_at datetime NULL,
+			PRIMARY KEY  (id),
+			KEY student_id (student_id),
+			KEY promotion_id (promotion_id)",
+		'mail_queue'       => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			student_id bigint(20) unsigned NOT NULL,
+			kind varchar(10) NOT NULL,
+			ref varchar(40) NOT NULL,
+			email varchar(120) NOT NULL DEFAULT '',
+			subject varchar(200) NOT NULL DEFAULT '',
+			body text NOT NULL,
+			status varchar(10) NOT NULL DEFAULT 'waiting',
+			tries tinyint(3) unsigned NOT NULL DEFAULT 0,
+			error varchar(200) NOT NULL DEFAULT '',
+			send_after datetime NOT NULL,
+			created_at datetime NOT NULL,
+			sent_at datetime NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY student_kind_ref (student_id,kind,ref),
+			KEY status_after (status,send_after)",
+		'exam_admit'       => "exam_id bigint(20) unsigned NOT NULL,
+			student_id bigint(20) unsigned NOT NULL,
+			state varchar(10) NOT NULL DEFAULT '',
+			set_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			set_at datetime NOT NULL,
+			PRIMARY KEY  (exam_id,student_id)",
+		'substitutions'    => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			sub_date date NOT NULL,
+			class_id bigint(20) unsigned NOT NULL,
+			period_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			absent_teacher_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			teacher_id bigint(20) unsigned NOT NULL,
+			note varchar(200) NOT NULL DEFAULT '',
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			{$hidden}
+			PRIMARY KEY  (id),
+			KEY date_teacher (sub_date,teacher_id),
+			KEY date_class (sub_date,class_id)",
+		'ptm_slots'        => "id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			teacher_id bigint(20) unsigned NOT NULL,
+			class_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			slot_date date NOT NULL,
+			start_time varchar(5) NOT NULL,
+			end_time varchar(5) NOT NULL,
+			place varchar(80) NOT NULL DEFAULT '',
+			student_id bigint(20) unsigned NOT NULL DEFAULT 0,
+			booked_at datetime NULL,
+			created_at datetime NOT NULL,
+			{$hidden}
+			PRIMARY KEY  (id),
+			KEY teacher_date (teacher_id,slot_date),
+			KEY student_id (student_id)",
 	);
 }
 
@@ -375,9 +457,11 @@ function mags_erp_activate() {
 	flush_rewrite_rules();
 }
 
-/** Portal data and accounts are kept on deactivation; only the /portal/ address is released. */
+/** Portal data and accounts are kept on deactivation; only the /portal/ address and the scheduled emails are released. */
 function mags_erp_deactivate() {
 	delete_option( 'rewrite_rules' );
+	wp_clear_scheduled_hook( 'mags_erp_daily' );
+	wp_clear_scheduled_hook( 'mags_erp_send_mail' );
 }
 
 /** Create or update the tables when the plugin files are updated without re-activation. */

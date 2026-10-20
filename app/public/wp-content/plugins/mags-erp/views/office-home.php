@@ -44,6 +44,10 @@ $erp_staff_leave = mags_erp_pending_staff_leave_count();
 if ( $erp_staff_leave ) {
 	$erp_alerts[] = array( sprintf( _n( '%d teacher is waiting for an answer about leave.', '%d teacher leave requests are waiting for an answer.', $erp_staff_leave, 'mags-erp' ), $erp_staff_leave ), mags_erp_url( 'staff-leave' ), 'Answer' );
 }
+// nginx does not read the private folder's .htaccess; until its rule is added the files can be downloaded directly.
+if ( true === mags_erp_private_files_exposed() ) {
+	$erp_alerts[] = array( 'Private files (homework, photos, documents) can be opened straight from the internet on this server. The web server needs the nginx rule shown under Settings.', mags_erp_url( 'settings' ) . '#erp-private-files', 'See the rule' );
+}
 $erp_stranded = mags_erp_stranded_questions_count();
 if ( $erp_stranded ) {
 	$erp_alerts[] = array( sprintf( _n( '%d question is waiting for a teacher who no longer teaches that class.', '%d questions are waiting for a teacher who no longer teaches that class.', $erp_stranded, 'mags-erp' ), $erp_stranded ), mags_erp_url( 'questions' ), 'Read questions' );
@@ -58,6 +62,24 @@ if ( $erp_stranded ) {
 	<?php foreach ( $erp_tiles as $erp_tile ) : ?>
 		<a class="erp-tile erp-tile--<?php echo esc_attr( $erp_tile[3] ); ?>" href="<?php echo esc_url( mags_erp_url( $erp_tile[0] ) ); ?>"><strong><?php echo esc_html( number_format_i18n( $erp_tile[2] ) ); ?></strong><span><?php echo esc_html( $erp_tile[1] ); ?></span></a>
 	<?php endforeach; ?>
+</section>
+
+<?php
+list( , $erp_day_totals ) = mags_erp_today_attendance( mags_erp_today() );
+$erp_day_received = array_sum( array_map( static function ( $erp_payment ) { return (float) $erp_payment->amount; }, mags_erp_payments_on( mags_erp_today() ) ) );
+$erp_day_pending  = mags_erp_pending_fees_overview();
+?>
+<section class="erp-card" aria-labelledby="erp-today-title">
+	<div class="erp-work__head">
+		<h2 id="erp-today-title">Today</h2>
+		<a class="erp-btn erp-btn--orange erp-btn--sm" href="<?php echo esc_url( mags_erp_url( 'today' ) ); ?>">Open today’s page</a>
+	</div>
+	<dl class="erp-tally erp-tally--money">
+		<div class="erp-tally__item erp-tally__item--A"><dt>Absent</dt><dd><?php echo esc_html( number_format_i18n( $erp_day_totals['A'] ) ); ?></dd></div>
+		<div class="erp-tally__item erp-tally__item--P"><dt>Fees received</dt><dd><?php echo esc_html( mags_erp_money( $erp_day_received ) ); ?></dd></div>
+		<div class="erp-tally__item erp-tally__item--L"><dt>Fees pending</dt><dd><?php echo esc_html( mags_erp_money( $erp_day_pending['left'] ) ); ?></dd></div>
+	</dl>
+	<p class="erp-hint"><?php echo esc_html( sprintf( '%1$d of %2$d students marked today.', $erp_day_totals['marked'], $erp_day_totals['students'] ) ); ?></p>
 </section>
 
 <?php if ( $erp_alerts ) : ?>

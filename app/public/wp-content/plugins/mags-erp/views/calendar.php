@@ -21,5 +21,5 @@ $erp_holiday = mags_erp_holiday_on( mags_erp_today() );
 <section aria-labelledby="erp-calendar-list-title">
 	<h2 id="erp-calendar-list-title" class="erp-section-title">In <?php echo esc_html( mags_erp_format_date( $erp_month['start'], 'F Y' ) ); ?> <span class="erp-count"><?php echo esc_html( count( $erp_entries ) ); ?></span></h2>
 	<?php mags_erp_print_calendar_list( $erp_month, $erp_entries ); ?>
-	<p class="erp-hint erp-hint--lead">On a holiday there is no school: attendance is not marked and the day is not counted in the attendance percentage.</p>
+	<p class="erp-hint erp-hint--lead">On a holiday there is no school: attendance is not marked and the day is not counted in the attendance percentage. Every Sunday is a holiday.</p>
 </section>

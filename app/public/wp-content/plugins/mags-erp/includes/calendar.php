@@ -7,6 +7,9 @@
  * marks that were saved on that day before it became a holiday are kept but
  * not counted in any percentage. An event is only shown in the calendar.
  * A removed entry is hidden, not deleted, and can be restored.
+ *
+ * Every Sunday is a holiday too, without an entry: the weekly holidays are the
+ * days that are not school days of the timetable (mags_erp_days()).
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -42,13 +45,25 @@ function mags_erp_removed_calendar_entries( $limit = 100 ) {
 	return (array) $wpdb->get_results( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'calendar' ) . ' WHERE hidden_at IS NOT NULL ORDER BY from_date DESC, id DESC LIMIT %d', $limit ) );
 }
 
-/** The holiday that covers this date, or null when it is a school day. */
-function mags_erp_holiday_on( $date ) {
-	global $wpdb;
-	return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'calendar' ) . " WHERE kind = 'holiday' AND hidden_at IS NULL AND from_date <= %s AND to_date >= %s ORDER BY from_date, id LIMIT 1", $date, $date ) );
+/** Days of the week without school, 1 = Monday … 7 = Sunday: the days that are not school days (Sunday). */
+function mags_erp_weekly_holidays() {
+	return array_values( array_diff( range( 1, 7 ), array_keys( mags_erp_days() ) ) );
 }
 
-/** date => holiday title for every holiday day between two dates (inclusive). */
+/** The weekly holiday on this date as a calendar entry without an id, or null on a school day of the week. */
+function mags_erp_weekly_holiday_on( $date ) {
+	if ( ! mags_erp_valid_date( $date ) || ! in_array( (int) gmdate( 'N', strtotime( $date . ' 00:00:00 UTC' ) ), mags_erp_weekly_holidays(), true ) ) { return null; }
+	return (object) array( 'id' => 0, 'kind' => 'holiday', 'title' => mags_erp_format_date( $date, 'l' ), 'from_date' => $date, 'to_date' => $date, 'details' => '', 'hidden_at' => null );
+}
+
+/** The holiday that covers this date (a calendar holiday first, then Sunday), or null when it is a school day. */
+function mags_erp_holiday_on( $date ) {
+	global $wpdb;
+	$holiday = $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM ' . mags_erp_table( 'calendar' ) . " WHERE kind = 'holiday' AND hidden_at IS NULL AND from_date <= %s AND to_date >= %s ORDER BY from_date, id LIMIT 1", $date, $date ) );
+	return $holiday ? $holiday : mags_erp_weekly_holiday_on( $date );
+}
+
+/** date => holiday title for every holiday day between two dates (inclusive), Sundays included. */
 function mags_erp_holiday_dates( $from, $to ) {
 	$dates = array();
 	foreach ( mags_erp_calendar_entries( $from, $to ) as $entry ) {
@@ -58,16 +73,26 @@ function mags_erp_holiday_dates( $from, $to ) {
 			if ( ! isset( $dates[ $date ] ) ) { $dates[ $date ] = $entry->title; }
 		}
 	}
+	if ( mags_erp_valid_date( $from ) && mags_erp_valid_date( $to ) ) {
+		for ( $date = $from; $date <= $to; $date = gmdate( 'Y-m-d', strtotime( $date . ' +1 day' ) ) ) {
+			$weekly = isset( $dates[ $date ] ) ? null : mags_erp_weekly_holiday_on( $date );
+			if ( $weekly ) { $dates[ $date ] = $weekly->title; }
+		}
+		ksort( $dates );
+	}
 	return $dates;
 }
 
 /**
- * SQL condition that leaves out attendance saved on a holiday. $column is the
- * attendance date column of the query, for example "a.att_date"; it is written
- * in the code, never taken from a request.
+ * SQL condition that leaves out attendance saved on a holiday or on Sunday.
+ * $column is the attendance date column of the query, for example "a.att_date";
+ * it is written in the code, never taken from a request.
  */
 function mags_erp_not_holiday_sql( $column ) {
-	return 'NOT EXISTS (SELECT 1 FROM ' . mags_erp_table( 'calendar' ) . " hol WHERE hol.kind = 'holiday' AND hol.hidden_at IS NULL AND hol.from_date <= {$column} AND hol.to_date >= {$column})";
+	$sql = 'NOT EXISTS (SELECT 1 FROM ' . mags_erp_table( 'calendar' ) . " hol WHERE hol.kind = 'holiday' AND hol.hidden_at IS NULL AND hol.from_date <= {$column} AND hol.to_date >= {$column})";
+	// WEEKDAY() counts 0 = Monday … 6 = Sunday.
+	$weekly = array_map( static function ( $day ) { return (int) $day - 1; }, mags_erp_weekly_holidays() );
+	return $weekly ? "({$sql} AND WEEKDAY({$column}) NOT IN (" . implode( ',', $weekly ) . '))' : $sql;
 }
 
 /** Number of school days between two dates on which attendance has been saved. */
@@ -164,7 +189,8 @@ function mags_erp_print_calendar_grid( $month, $entries ) {
 	for ( $i = 0; $i < $month['blank']; $i++ ) { echo '<li class="erp-cal__blank" aria-hidden="true"></li>'; }
 	for ( $day = 1; $day <= $month['days']; $day++ ) {
 		$date     = $month['month'] . '-' . sprintf( '%02d', $day );
-		$holidays = $marks[ $date ]['holiday'] ?? array();
+		$weekly   = mags_erp_weekly_holiday_on( $date );
+		$holidays = $marks[ $date ]['holiday'] ?? ( $weekly ? array( $weekly->title ) : array() );
 		$events   = $marks[ $date ]['event'] ?? array();
 		$spoken   = array();
 		if ( $holidays ) { $spoken[] = 'Holiday: ' . implode( ', ', $holidays ); }
